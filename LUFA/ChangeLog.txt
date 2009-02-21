@@ -6,6 +6,19 @@
    
  /** \page Page_ChangeLog Project Changelog
   *
+  *  \section Sec_ChangeLogXXXXXX Version XXXXXX
+  *
+  *  - Added new BluetoothHost demo
+  *  - Changed AVRISP Programmer descriptors to use a newly allocated 0x204F PID value
+  *  - Fixed MagStripe project configuration descriptor containing an unused (blank) endpoint descriptor
+  *  - Incorporated makefile changes by Denver Gingerich to retain compatibility with stock (non-WinAVR) AVR-GCC installations
+  *  - Fixed makefile EEPROM programming targets programming FLASH data in addition to EEPROM data
+  *  - LUFA devices now enumerate correctly with LUFA hosts
+  *  - Fixed Configuration Descriptor search routine freezing when a comparitor returned a failure
+  *  - Removed HID report item serial dump in the MouseHostWithParser and KeyboardHostWithParser - useful only for debugging, and
+  *    slowed down the enumeration of HID devices too much
+  *  - Increased the number of bits per track which can be read in the MagStripe project to 20480 when compiled for the AT90USBXXX6/7
+  *
   *  \section Sec_ChangeLog090209 Version 090209
   *
   *  - PWM timer mode in AudioOut demo changed to Fast PWM for speed
@@ -58,8 +71,6 @@
   *  - Added AVRISP Programmer Project, courtesy of Opendous Inc.
   *  - Fixed CDC Host demo not searching through both CDC interfaces for endpoints
   *  - Fixed incorrect Product String descriptor length in the DFU class bootloader
-  *  - Fixed failed descriptor searches in ConfigDescriptor.c eating the last checked descriptor when another search is started
-  *  - Added new USB_Host_GetPreviousDescriptor() function to ConfigDescriptor.c to move back one descriptor
   *
   *  \section Sec_ChangeLog081224 Version 081224
   *

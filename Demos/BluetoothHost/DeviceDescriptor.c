@@ -28,41 +28,36 @@
   this software.
 */
 
-#include "HIDReport.h"
+#include "DeviceDescriptor.h"
 
-/** Size in bytes of the attached device's HID report descriptor */
-uint16_t         HIDReportSize;
-
-/** Processed HID report descriptor items structure, containing information on each HID report element */
-HID_ReportInfo_t HIDReportInfo;
-
-
-/** Function to read in the HID report descriptor from the attached device, and process it into easy-to-read
- *  structures via the HID parser routines in the LUFA library.
- *
- *  \return  A value from the MouseHostWithParser_GetHIDReportDataCodes_t enum
- */
-uint8_t GetHIDReportData(void)
+uint8_t ProcessDeviceDescriptor(void)
 {
-	/* Create a buffer big enough to hold the entire returned HID report */
-	uint8_t HIDReportData[HIDReportSize];
-	
+	USB_Descriptor_Device_t DeviceDescriptor;
+
+	/* Standard request to get the device descriptor */
 	USB_HostRequest = (USB_Host_Request_Header_t)
 		{
-			bmRequestType: (REQDIR_DEVICETOHOST | REQTYPE_STANDARD | REQREC_INTERFACE),
+			bmRequestType: (REQDIR_DEVICETOHOST | REQTYPE_STANDARD | REQREC_DEVICE),
 			bRequest:      REQ_GetDescriptor,
-			wValue:        (DTYPE_Report << 8),
+			wValue:        (DTYPE_Device << 8),
 			wIndex:        0,
-			wLength:       HIDReportSize,
+			wLength:       sizeof(USB_Descriptor_Device_t),
 		};
 
-	/* Send control request to retrieve the HID report from the attached device */
-	if (USB_Host_SendControlRequest(HIDReportData) != HOST_SENDCONTROL_Successful)
-	  return ParseControlError;
-
-	/* Send the HID report to the parser for processing */
-	if (ProcessHIDReport(HIDReportData, HIDReportSize, &HIDReportInfo) != HID_PARSE_Successful)
-	  return ParseError;
+	/* Send the request to retrieve the device descriptor */
+	if (USB_Host_SendControlRequest((void*)&DeviceDescriptor) != HOST_SENDCONTROL_Successful)
+	  return ControlErrorDuringDeviceRead;
+	  
+	/* Validate returned data - ensure the returned data is a device descriptor */
+	if (DeviceDescriptor.Header.Type != DTYPE_Device)
+	  return InvalidDeviceDataReturned;
+	  
+	if ((DeviceDescriptor.Class != BLUETOOTH_DEVICE_CLASS) ||
+	    (DeviceDescriptor.SubClass != BLUETOOTH_DEVICE_SUBCLASS) ||
+	    (DeviceDescriptor.Protocol != BLUETOOTH_DEVICE_PROTOCOL))
+	{
+		return IncorrectDevice;
+	}
 	
-	return ParseSuccessful;
+	return SuccessfulDeviceRead;
 }
