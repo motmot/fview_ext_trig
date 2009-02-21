@@ -95,7 +95,7 @@ FORMAT = ihex
 
 
 # Target file name (without extension).
-TARGET = MouseViaInt
+TARGET = BluetoothHost
 
 
 # Object files directory
@@ -106,15 +106,22 @@ OBJDIR = .
 
 # List C source files here. (C dependencies are automatically generated.)
 SRC = $(TARGET).c                                          \
-	  Descriptors.c                                        \
+	  DeviceDescriptor.c                                   \
+	  ConfigDescriptor.c                                   \
+	  BluetoothStack.c                                     \
+	  BluetoothHCICommands.c                               \
+	  BluetoothACLPackets.c                                \
 	  ../../LUFA/Scheduler/Scheduler.c                     \
+	  ../../LUFA/Drivers/AT90USBXXX/Serial_Stream.c        \
+	  ../../LUFA/Drivers/AT90USBXXX/Serial.c               \
+	  ../../LUFA/Drivers/USB/Class/ConfigDescriptor.c      \
 	  ../../LUFA/Drivers/USB/LowLevel/LowLevel.c           \
-	  ../../LUFA/Drivers/USB/LowLevel/Endpoint.c           \
-	  ../../LUFA/Drivers/USB/LowLevel/DevChapter9.c        \
+	  ../../LUFA/Drivers/USB/LowLevel/Pipe.c               \
+	  ../../LUFA/Drivers/USB/LowLevel/Host.c               \
+	  ../../LUFA/Drivers/USB/LowLevel/HostChapter9.c       \
 	  ../../LUFA/Drivers/USB/HighLevel/USBTask.c           \
 	  ../../LUFA/Drivers/USB/HighLevel/USBInterrupt.c      \
 	  ../../LUFA/Drivers/USB/HighLevel/Events.c            \
-	  ../../LUFA/Drivers/USB/HighLevel/StdDescriptors.c    \
 	  
 # List C++ source files here. (C dependencies are automatically generated.)
 CPPSRC = 
@@ -159,9 +166,9 @@ CSTANDARD = -std=gnu99
 
 
 # Place -D or -U options here for C sources
-CDEFS  = -DF_CPU=$(F_CPU)UL -DBOARD=BOARD_$(BOARD) -DUSE_NONSTANDARD_DESCRIPTOR_NAMES -DNO_STREAM_CALLBACKS
-CDEFS += -DUSB_DEVICE_ONLY -DUSE_STATIC_OPTIONS="(USB_DEVICE_OPT_FULLSPEED | USB_OPT_REG_ENABLED | USB_OPT_AUTO_PLL)"
-
+CDEFS  = -DF_CPU=$(F_CPU)UL -DBOARD=BOARD_$(BOARD) -DUSE_NONSTANDARD_DESCRIPTOR_NAMES
+CDEFS += -DUSB_HOST_ONLY -DUSE_STATIC_OPTIONS="(USB_OPT_REG_ENABLED | USB_OPT_AUTO_PLL)"
+CDEFS += -DNO_STREAM_CALLBACKS
 
 # Place -D or -U options here for ASM sources
 ADEFS = -DF_CPU=$(F_CPU)
@@ -192,7 +199,6 @@ CFLAGS += -fshort-enums
 CFLAGS += -finline-limit=20
 CFLAGS += -Wall
 CFLAGS += -Wstrict-prototypes
-#CFLAGS += -mshort-calls
 CFLAGS += -Wundef
 #CFLAGS += -fno-unit-at-a-time
 #CFLAGS += -Wunreachable-code
@@ -657,7 +663,7 @@ $(OBJDIR)/%.o : %.S
 	$(CC) -E -mmcu=$(MCU) -I. $(CFLAGS) $< -o $@ 
 	
 
-# Target: clean project.
+## Target: clean project.
 clean: begin clean_list clean_binary end
 
 clean_binary:
@@ -678,14 +684,10 @@ clean_list:
 	$(REMOVE) $(SRC:.c=.i)
 	$(REMOVEDIR) .dep
 
-
 doxygen:
 	@echo Generating Project Documentation...
 	@doxygen Doxygen.conf
 	@echo Documentation Generation Complete.
-
-clean_doxygen:
-	rm -rf Documentation
 
 # Create object files directory
 $(shell mkdir $(OBJDIR) 2>/dev/null)
@@ -700,4 +702,4 @@ $(shell mkdir $(OBJDIR) 2>/dev/null)
 finish end sizebefore sizeafter gccversion  \
 build elf hex eep lss sym coff extcoff      \
 clean clean_list clean_binary program debug \
-gdb-config doxygen dfu flip
+gdb-config doxygen

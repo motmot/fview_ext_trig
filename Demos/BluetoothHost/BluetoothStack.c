@@ -28,22 +28,50 @@
   this software.
 */
 
-/** \file
- *
- *  Version constants for informational purposes and version-specific macro creation. This header file contains the
- *  current LUFA version number in several forms, for use in the user-application (for example, for printing out 
- *  whilst debugging, or for testing for version compatibility).
- */
+#include "BluetoothStack.h"
 
-#ifndef __LUFA_VERSION_H__
-#define __LUFA_VERSION_H__
+Bluetooth_Connection_t Bluetooth_Connection = {IsConnected: false};
 
-	/* Public Interface - May be used in end-application: */
-		/* Macros: */
-			/** Indicates the version number of the library, as an integer. */
-			#define LUFA_VERSION_INTEGER     000000
+Bluetooth_Device_t     Bluetooth_DeviceConfiguration ATTR_WEAK =
+	{
+		Class:   DEVICE_CLASS_MAJOR_MISC,
+		PINCode: "0000",
+		Name:    "LUFA BT Device"
+	};
 
-			/** Indicates the version number of the library, as a string. */
-			#define LUFA_VERSION_STRING      "000000"
+TASK(Bluetooth_Task)
+{
+	if (!(USB_IsConnected) || (USB_HostState != HOST_STATE_Ready))
+	  Bluetooth_HCIProcessingState = Bluetooth_Init;
+		
+	Bluetooth_ProcessHCICommands();
+	Bluetooth_ProcessACLPackets();
+}
 
-#endif
+Bluetooth_Channel_t* Bluetooth_GetChannelData(uint16_t PSM)
+{
+	Bluetooth_Channel_t* CurrentChannelStructure;
+
+	for (uint8_t i = 0; i < BLUETOOTH_MAX_OPEN_CHANNELS; i++)
+	{
+		CurrentChannelStructure = &Bluetooth_Connection.Channels[i];
+	
+		if (CurrentChannelStructure->PSM == PSM)
+		  return CurrentChannelStructure;
+	}
+	
+	for (uint8_t i = 0; i < BLUETOOTH_MAX_OPEN_CHANNELS; i++)
+	{
+		CurrentChannelStructure = &Bluetooth_Connection.Channels[i];
+	
+		if (CurrentChannelStructure->State == Channel_Closed)
+		{
+			CurrentChannelStructure->LocalNumber = (BLUETOOTH_CHANNELNUMBER_BASEOFFSET + i);
+			CurrentChannelStructure->PSM         = PSM;
+			
+			return CurrentChannelStructure;
+		}
+	}
+
+	return NULL;
+}
