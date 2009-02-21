@@ -155,6 +155,21 @@
 				ADCSRA |= (1 << ADSC);
 			}
 
+			/** Sets the multiplexer to read from the given channel.
+			 *
+			 *  \param MUXMask  Mask comprising of an ADC channel number, reference mask and adjustment mask
+			 */
+			static inline void ADC_SetChannel(const uint8_t MUXMask)
+			{
+				ADMUX = MUXMask;
+                        }
+
+			/** Gets the multiplexer state.
+			 *
+			 *  Returns a mask comprising of an ADC channel number, reference mask and adjustment mask
+			 */
+                        #define ADC_GetChannel() (ADMUX)
+
 			/** Performs a complete single reading from channel, including a polling spinloop to wait for the
 			 *  conversion to complete, and the returning of the converted value.
 			 *
