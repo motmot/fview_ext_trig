@@ -133,15 +133,13 @@
 
 		/* Inline Functions: */
 			/** Configures the given ADC channel, ready for ADC conversions. This function sets the
-			 *  associated port pin as an input and disables the digital portion of the I/O to reduce
-			 *  power consumption.
+			 *  associated port pin as an input.
 			 *
 			 *  \param Channel  ADC channel number to set up for conversions
 			 */
 			static inline void ADC_SetupChannel(const uint8_t Channel)
 			{
-				DDRD  &= ~(1 << Channel);
-				DIDR0 |=  (1 << Channel);
+				DDRF  &= ~(1 << Channel);
 			}
 			
 			/** Starts the reading of the given channel, but does not wait until the conversion has completed.
