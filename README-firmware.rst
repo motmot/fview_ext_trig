@@ -25,7 +25,7 @@ in linux
 
 To build the MotmotCamtrig firmware (``camtrig.hex``)::
 
-  cd LUFA/Projects
+  cd Projects
   rm -f MotmotCamTrig/*.hex MotmotCamTrig/*.o
   make -C MotmotCamTrig
 
