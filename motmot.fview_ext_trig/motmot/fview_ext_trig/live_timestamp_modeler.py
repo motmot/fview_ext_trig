@@ -1,0 +1,476 @@
+import pkg_resources
+import enthought.traits.api as traits
+from enthought.traits.ui.api import View, Item, Group, TextEditor, ListEditor, \
+     InstanceEditor, Spring
+import ttrigger
+import time
+import numpy as np
+import cDecode
+import Queue
+from enthought.chaco.chaco_plot_editor import ChacoPlotItem
+import warnings
+
+class ImpreciseMeasurementError(Exception):
+    pass
+
+class AnalogDataOverflowedError(Exception):
+    pass
+
+def myformat(x):
+    if x is None:
+        return ''
+    return "%.5g"%x
+
+def myformat2(x):
+    if x is None:
+        return ''
+    return "%.3f"%x
+
+class LiveTimestampModeler(traits.HasTraits):
+    _trigger_device = traits.Instance(ttrigger.DeviceModel)
+
+    sync_interval = traits.Float(2.0)
+    has_ever_synchronized = traits.Bool(False,transient=True)
+
+    timestamps = traits.Array(dtype=np.float)
+
+    framestamps = traits.Array(dtype=np.float)
+
+    timestamp_data_queue = traits.Instance(Queue.Queue,transient=True)
+    block_activity = traits.Bool(False,transient=True)
+
+    synchronize = traits.Button(label='Synchronize')
+    synchronizing_info = traits.Any(None)
+
+    gain_offset_residuals = traits.Property(
+        depends_on = ['timestamps','framestamps'] )
+
+    residual_error = traits.Property(
+        depends_on = 'gain_offset_residuals' )
+
+    gain = traits.Property(
+        depends_on = 'gain_offset_residuals' )
+
+    offset = traits.Property(
+        depends_on = 'gain_offset_residuals' )
+
+    frame_offsets = traits.Dict()
+    last_frame = traits.Dict()
+
+    view_time_model_plot = traits.Button
+
+    traits_view = View(Group(Item( name='gain',
+                                   style='readonly',
+                                   editor=TextEditor(evaluate=float,
+                                                     format_func=myformat),
+                                   ),
+                             Item( name='offset',
+                                   style='readonly',
+                                   editor=TextEditor(evaluate=float,
+                                                     format_func=myformat2),
+                                   ),
+                             Item( name='residual_error',
+                                   style='readonly',
+                                   editor=TextEditor(evaluate=float,
+                                                     format_func=myformat),
+                                   ),
+                             Item( 'synchronize', show_label = False ),
+                             Item( 'view_time_model_plot', show_label = False ),
+                             ),
+                       title = 'Timestamp modeler',
+                       )
+
+    def __init__(self,*args,**kwargs):
+        super(LiveTimestampModeler,self).__init__(*args,**kwargs)
+        self.timestamp_data_queue = Queue.Queue()
+
+    def pump_timestamp_data(self,flush=False):
+        """call this occasionally to avoid building up too much data in RAM"""
+        if flush:
+            self.update() # get latest information
+        rows = []
+        try:
+            while 1:
+                rows.append( self.timestamp_data_queue.get_nowait())
+        except Queue.Empty:
+            pass
+        if len(rows):
+            timestamps, framestamps = zip(*rows)
+            timestamps = np.hstack(timestamps)
+            framestamps = np.hstack(framestamps)
+            result = timestamps,framestamps
+        else:
+            result = None
+        return result
+
+    def _block_activity_changed(self):
+        if self.block_activity:
+            print('Do not change frame rate or AIN parameters. '
+                  'Automatic prevention of doing '
+                  'so is not currently implemented.')
+        else:
+            print('You may change frame rate again')
+
+    def _view_time_model_plot_fired(self):
+        raise NotImplementedError('')
+
+    def _synchronize_fired(self):
+        if self.block_activity:
+            print('Not synchronizing because activity is blocked. '
+                  '(Perhaps because you are saving data now.')
+            return
+
+        orig_fps = self._trigger_device.frames_per_second_actual
+        self._trigger_device.set_frames_per_second_approximate( 0.0 )
+        self._trigger_device.reset_framecount_A = True # trigger reset event
+        self.synchronizing_info = (time.time()+self.sync_interval+0.1,
+                                   orig_fps)
+
+    @traits.cached_property
+    def _get_gain( self ):
+        result = self.gain_offset_residuals
+        if result is None:
+            # not enought data
+            return None
+        gain,offset,residuals = result
+        return gain
+
+    @traits.cached_property
+    def _get_offset( self ):
+        result = self.gain_offset_residuals
+        if result is None:
+            # not enought data
+            return None
+        gain,offset,residuals = result
+        return offset
+
+    @traits.cached_property
+    def _get_residual_error( self ):
+        result = self.gain_offset_residuals
+        if result is None:
+            # not enought data
+            return None
+        gain,offset,residuals = result
+        if residuals is None or len(residuals)==0:
+            # not enought data
+            return None
+        assert len(residuals)==1
+        return residuals[0]
+
+    @traits.cached_property
+    def _get_gain_offset_residuals( self ):
+        timestamps = self.timestamps
+        framestamps = self.framestamps
+        if timestamps is None:
+            return None
+
+        if len(timestamps)<2:
+            return None
+
+        if len(timestamps) != len(framestamps):
+            if len(timestamps) > len(framestamps):
+                # truncate to same length
+                timestamps = timestamps[:len(framestamps)]
+            else:
+                return None
+                #raise ValueError('timestamps and framestamps not same length')
+
+        self.timestamp_data_queue.put( (timestamps,framestamps) )
+
+        # like model_remote_to_local in flydra.analysis
+        remote_timestamps = framestamps
+        local_timestamps = timestamps
+
+        a1=remote_timestamps[:,np.newaxis]
+        a2=np.ones( (len(remote_timestamps),1))
+        A = np.hstack(( a1,a2))
+        b = local_timestamps[:,np.newaxis]
+        x,resids,rank,s = np.linalg.lstsq(A,b)
+
+        gain = x[0,0]
+        offset = x[1,0]
+        return gain,offset,resids
+
+    def set_trigger_device(self,device):
+        self._trigger_device = device
+
+    def _get_now_framestamp(self,max_error_seconds=0.003):
+        count = 0
+        while count <= 10:
+            now1 = time.time()
+            framestamp = self._trigger_device.get_framestamp()
+            now2 = time.time()
+            count += 1
+            measurement_error = abs(now2-now1)
+            if framestamp%1.0 < 0.1:
+                warnings.warn('workaround of TCNT race condition on MCU...')
+                continue
+            if measurement_error < max_error_seconds:
+                break
+            time.sleep(0.01) # wait 10 msec before trying again
+        if not measurement_error < max_error_seconds:
+            raise ImpreciseMeasurementError(
+                'could not obtain low error measurement')
+        if framestamp%1.0 < 0.1:
+            raise ImpreciseMeasurementError(
+                'workaround MCU bug')
+
+        now = (now1+now2)*0.5
+        return now, framestamp
+
+    def clear_samples(self,call_update=True):
+        self.timestamps = np.empty( (0,))
+        self.framestamps = np.empty( (0,))
+        if call_update:
+            self.update()
+
+    def update(self):
+        """call this function fairly often to pump information from the USB device"""
+        if self.synchronizing_info is not None:
+            done_time, orig_fps = self.synchronizing_info
+            # suspended trigger pulses to re-synchronize
+            if time.time() >= done_time:
+                # we've waited the sync duration, restart
+                self._trigger_device.set_frames_per_second_approximate(orig_fps)
+                self.clear_samples(call_update=False) # avoid recursion
+                self.synchronizing_info = None
+                self.has_ever_synchronized = True
+
+        now, framestamp = self._get_now_framestamp()
+
+        self.timestamps = np.hstack((self.timestamps,[now]))
+        self.framestamps = np.hstack((self.framestamps,[framestamp]))
+
+        # If more than 100 samples,
+        if len(self.timestamps) > 100:
+            # keep only the most recent 50.
+            self.timestamps = self.timestamps[-50:]
+            self.framestamps = self.framestamps[-50:]
+
+    def register_frame(self, id_string, framenumber, frame_timestamp):
+        """note that a frame happened and return start-of-frame time"""
+
+        # This may get called from another thread (e.g. the realtime
+        # image processing thread).
+
+        # An important note about locking and thread safety: This code
+        # relyies on the Python interpreter to lock data structures
+        # across threads. To do this internally, a lock would be made
+        # for each variable in this instance and acquired before each
+        # access. Because the data structures are simple Python
+        # objects, I believe the operations are atomic and thus this
+        # function is OK.
+
+        last_frame_timestamp = self.last_frame.get(id_string,0.0)
+        this_interval = frame_timestamp-last_frame_timestamp
+
+        if this_interval > self.sync_interval:
+            # re-synchronize camera
+
+            # XXX need to figure out where two frame offset comes from:
+            self.frame_offsets[id_string] = framenumber-2
+
+        self.last_frame[id_string] = frame_timestamp
+
+        result = self.gain_offset_residuals
+        if result is None:
+            # not enough data
+            return None
+
+        gain,offset,residuals = result
+        corrected_framenumber = framenumber-self.frame_offsets[id_string]
+        trigger_timestamp = corrected_framenumber*gain + offset
+
+        return trigger_timestamp
+
+class AnalogInputChannelViewer(traits.HasTraits):
+    index = traits.Array(dtype=np.float)
+    data = traits.Array(dtype=np.float)
+    device_channel_num = traits.Int(label='ADC')
+
+    traits_view = View(
+        Group(
+                Item('device_channel_num',style='readonly'),
+        ChacoPlotItem('index','data',
+                      #x_label = "elapsed time (sec)",
+                      x_label = "index",
+                      y_label = "data",
+                      show_label=False,
+                      y_bounds=(-1,2**10+1),
+                      y_auto=False,
+                      resizable=True,
+                      title = 'Analog input',
+                      ),
+        ),
+        resizable=True,
+        width=800, height=200,
+        )
+
+class AnalogInputViewer(traits.HasTraits):
+    channels = traits.List
+    usb_device_number2index = traits.Property(depends_on='channels')
+
+    @traits.cached_property
+    def _get_usb_device_number2index(self):
+        result = {}
+        for i,channel in enumerate(self.channels):
+            result[channel.device_channel_num]=i
+        return result
+
+    traits_view = View(
+        Group(
+        Item('channels',style='custom',
+             editor=ListEditor(rows = 3,
+                               editor=InstanceEditor(),
+                               style='custom'),
+             resizable=True,
+             )),
+        resizable=True,
+        width=800, height=600,
+        title='Analog Input',
+        )
+    def __init__(self,*args,**kwargs):
+        super(AnalogInputViewer,self).__init__(*args,**kwargs)
+        for usb_channel_num in [1,2,3]:
+            self.channels.append(AnalogInputChannelViewer(
+                device_channel_num=usb_channel_num))
+
+class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
+    view_AIN = traits.Button(label='view analog input (AIN)')
+    viewer = traits.Instance(AnalogInputViewer)
+    old_data_raw = traits.Array(dtype=np.uint16,transient=True) # analog
+    ain_raw_word_queue = traits.Instance(Queue.Queue,transient=True)
+    timer3_top = traits.Property() # necessary to calculate precise timestamps for AIN data
+    channel_names = traits.Property()
+
+    traits_view = View(Group(Item( 'synchronize', show_label = False ),
+                             Item( 'view_time_model_plot', show_label = False ),
+                             Item( name='gain',
+                                   style='readonly',
+                                   editor=TextEditor(evaluate=float,
+                                                     format_func=myformat),
+                                   ),
+                             Item( name='offset',
+                                   style='readonly',
+                                   editor=TextEditor(evaluate=float,
+                                                     format_func=myformat2),
+                                   ),
+                             Item( name='residual_error',
+                                   style='readonly',
+                                   editor=TextEditor(evaluate=float,
+                                                     format_func=myformat),
+                                   ),
+                             Item( 'view_AIN', show_label = False ),
+                             ),
+                       title = 'Timestamp modeler',
+                       )
+
+    def __init__(self,*args,**kwargs):
+        super(LiveTimestampModelerWithAnalogInput,self).__init__(*args,**kwargs)
+        self.ain_raw_word_queue = Queue.Queue()
+
+    def _get_timer3_top(self):
+        return self._trigger_device.timer3_top
+
+    def _get_channel_names(self):
+        enabled_channels = self._trigger_device.enabled_channels
+        # In the future, this could hold physical meaning like "Channel 1 Voltage"
+        result = {}
+        for channel_num in enabled_channels:
+            result[channel_num] = 'ADC%d'%channel_num
+        return result
+
+    def pump_ain_wordstream_buffer(self,flush=False):
+        """call this occasionally to avoid building up too much data in RAM"""
+        if flush:
+            self.update_analog_input()
+        rows = []
+        try:
+            while 1:
+                rows.append(self.ain_raw_word_queue.get_nowait( ))
+        except Queue.Empty:
+            pass
+        if len(rows):
+            result = np.hstack(rows)
+        else:
+            result = None
+        return result
+
+    def update_analog_input(self):
+        """call this function frequently to avoid overruns"""
+        new_data_raw = self._trigger_device.get_analog_input_buffer_rawLE()
+        self.ain_raw_word_queue.put( new_data_raw )
+        data_raw = np.hstack((new_data_raw,self.old_data_raw))
+        newdata_all = []
+        chan_all = []
+        any_overflow = False
+        #cum_framestamps = []
+        while len(data_raw):
+            result = cDecode.process( data_raw )
+            (N,samples,channels,did_overflow,framestamp)=result
+            if N==0:
+                # no data was able to be processed
+                break
+            data_raw = data_raw[N:]
+            newdata_all.append( samples )
+            chan_all.append( channels )
+            if did_overflow:
+                any_overflow = True
+            # Save framestamp data.
+            # This is not done yet:
+            ## if framestamp is not None:
+            ##     cum_framestamps.append( framestamp )
+        self.old_data_raw = data_raw # save unprocessed data for next run
+
+        if any_overflow:
+            # XXX should move to logging the error.
+            raise AnalogDataOverflowedError()
+
+        if len(chan_all)==0:
+            # no data
+            return
+        chan_all=np.hstack(chan_all)
+        newdata_all=np.hstack(newdata_all)
+        USB_channel_numbers = np.unique(chan_all)
+        #print len(newdata_all),'new samples on channels',USB_channel_numbers
+
+        ## F_OSC = 8000000.0 # 8 MHz
+        ## adc_prescaler = 128
+        ## downsample = 20 # maybe 21?
+        ## n_chan = 3
+        ## F_samp = F_OSC/adc_prescaler/downsample/n_chan
+        ## dt=1.0/F_samp
+        ## ## print '%.1f Hz sampling. %.3f msec dt'%(F_samp,dt*1e3)
+        ## MAXLEN_SEC=0.3
+        ## #MAXLEN = int(MAXLEN_SEC/dt)
+        MAXLEN = 5000 #int(MAXLEN_SEC/dt)
+        ## ## print 'MAXLEN',MAXLEN
+        ## ## print
+
+        for USB_chan in USB_channel_numbers:
+            vi=self.viewer.usb_device_number2index[USB_chan]
+            cond = chan_all==USB_chan
+            newdata = newdata_all[cond]
+
+            oldidx = self.viewer.channels[vi].index
+            olddata = self.viewer.channels[vi].data
+
+            if len(oldidx):
+                baseidx = oldidx[-1]+1
+            else:
+                baseidx = 0.0
+            newidx = np.arange(len(newdata),dtype=np.float)+baseidx
+
+            tmpidx = np.hstack( (oldidx,newidx) )
+            tmpdata = np.hstack( (olddata,newdata) )
+
+            if len(tmpidx) > MAXLEN:
+                # clip to MAXLEN
+                self.viewer.channels[vi].index = tmpidx[-MAXLEN:]
+                self.viewer.channels[vi].data = tmpdata[-MAXLEN:]
+            else:
+                self.viewer.channels[vi].index = tmpidx
+                self.viewer.channels[vi].data = tmpdata
+
+    def _view_AIN_fired(self):
+        self.viewer.edit_traits()

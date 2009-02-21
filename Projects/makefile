@@ -20,6 +20,10 @@ all:
 	make -C AVRISP_Programmer clean
 	make -C AVRISP_Programmer all
 
+	make -C MotmotCamTrig clean
+	make -C MotmotCamTrig all
+
 %:
 	make -C Magstripe $@
 	make -C AVRISP_Programmer $@
+	make -C MotmotCamTrig $@
