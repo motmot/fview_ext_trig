@@ -107,6 +107,9 @@
 			 *  the ADC returns to idle. */
 			#define  ADC_SINGLE_CONVERSION           (0 << ADATE)
 			
+                        /** Enable ADC interrupt. */
+                        #define  ADC_INTERRUPT_ENABLE            (1 << ADIE)
+
 			/** Sets the ADC input clock to prescale by a factor of 2 the AVR's system clock. */
 			#define  ADC_PRESCALE_2                  (1 << ADPS0)
 
