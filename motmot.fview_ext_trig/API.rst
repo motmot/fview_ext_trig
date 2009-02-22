@@ -10,7 +10,8 @@
   single: analog input
   single: synchronization
 
-This package contains three top-level modules of interest:
+This package provides Python access to the :ref:`motmot camera trigger
+device <fview_ext_trig-overview>`. There are three top-level modules:
 
 * :mod:`fview_ext_trig.ttrigger` -- This is a Python module with
   traited__ classes to interact with the :ref:`camtrig <camtrig>`
