@@ -8,15 +8,7 @@ trigger device that is part of the motmot_ project.
 
 .. _motmot: http://code.astraw.com/projects/motmot
 
-For more information, see `OVERVIEW.rst`_.
-
-.. _OVERVIEW.rst: OVERVIEW.rst
-
-.. image:: usbkey.jpg
-  :alt: Atmel AT90USBKEY
-
-.. image:: motmot.fview_ext_trig/screenshot-small.png
-
+For more information, see ``OVERVIEW.rst``.
 
 Layout of the source tree
 -------------------------
