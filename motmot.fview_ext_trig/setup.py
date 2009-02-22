@@ -1,11 +1,17 @@
 from setuptools import setup, find_packages, Extension
+import sys,os
+
+# Make this source code directory first in import order to get version.
+sys.path.insert(0,os.path.join('motmot','fview_ext_trig'))
+from version import __version__
 
 setup(name='motmot.fview_ext_trig',
-      version='0.01',
+      description='Camera trigger device with precise timing and analog input',
+      version=__version__,
       packages = find_packages(),
       author='Andrew Straw',
       author_email='strawman@astraw.com',
-      zip_safe=True,
+      url='http://code.astraw.com/projects/motmot/camtrig/OVERVIEW.html',
       ext_modules=[Extension(name="motmot.fview_ext_trig.cDecode",
                              sources=['motmot/fview_ext_trig/cDecode.c',
                                       'motmot/fview_ext_trig/decode.c'])],
