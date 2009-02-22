@@ -80,7 +80,7 @@ page`_ and the firmware, camtrig.hex_, from github.
 
 .. _motmot: http://code.astraw.com/projects/motmot
 .. _LUFA: http://www.fourwalledcubicle.com/LUFA.php
-.. _PyPI page: XXX
+.. _PyPI page: http://pypi.python.org/pypi/motmot.fview_ext_trig
 .. _camtrig.hex: http://github.com/astraw/motmot-camtrig/raw/master/Projects/MotmotCamTrig/camtrig.hex
 
 More information
