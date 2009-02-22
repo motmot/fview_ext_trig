@@ -25,7 +25,7 @@ device <fview_ext_trig-overview>`. There are three top-level modules:
   a time-locked data stream on up to four channels. (middle level)
 
 * :mod:`fview_ext_trig.fview_ext_trig` -- This model implements a
-  plugin for :command:`fview` to use the
+  plugin for :mod:`fview` to use the
   LiveTimestampModelerWithAnalogInput class. (high level)
 
 __ http://code.enthought.com/projects/traits/
