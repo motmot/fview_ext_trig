@@ -168,6 +168,7 @@ class DeviceModel(traits.HasTraits):
     # Private runtime details
     _libusb_handle = traits.Any(None,transient=True)
     _lock = traits.Any(None,transient=True) # lock access to the handle
+    _have_trigger = traits.Bool(True,transient=True) # real USB device present
 
     ignore_version_mismatch = traits.Bool(False, transient=True)
 
@@ -337,6 +338,8 @@ class DeviceModel(traits.HasTraits):
         The inter-frame counter counts up from 0 to self.timer3_top
         between frame ticks.
         """
+        if not self._have_trigger:
+            return time.time()
         buf = ctypes.create_string_buffer(1)
         buf[0] = chr(CAMTRIG_GET_FRAMESTAMP_NOW)
         self._send_buf(buf)
@@ -354,6 +357,9 @@ class DeviceModel(traits.HasTraits):
         return framestamp
 
     def get_analog_input_buffer_rawLE(self):
+        if not self._have_trigger:
+            outbuf = np.array([],dtype='<u2') # unsigned 2 byte little endian
+            return outbuf
         EP_LEN = 256
         INPUT_BUFFER = ctypes.create_string_buffer(EP_LEN)
 
@@ -487,10 +493,14 @@ class DeviceModel(traits.HasTraits):
         self._send_buf(buf)
 
     def _send_buf(self,buf):
+        if not self._have_trigger:
+            return
         with self._lock:
             val = usb.bulk_write(self._libusb_handle, 0x06, buf, 9999)
 
     def _read_buf(self):
+        if not self._have_trigger:
+            return None
         buf = ctypes.create_string_buffer(16)
         timeout = 1000
         with self._lock:
@@ -520,7 +530,12 @@ class DeviceModel(traits.HasTraits):
             if found:
                 break
         if not found:
-            raise RuntimeError("Cannot find device. (Perhaps run with environment variable REQUIRE_TRIGGER=0.)")
+            if int(os.environ.get('REQUIRE_TRIGGER','1')):
+                raise RuntimeError("Cannot find device. (Perhaps run with "
+                                   "environment variable REQUIRE_TRIGGER=0.)")
+            else:
+                self._have_trigger = False
+                return
         with self._lock:
             self._libusb_handle = usb.open(dev)
 
@@ -580,7 +595,7 @@ def check_device():
     dev.led2 = False
     dev.led3 = False
     dev.led4 = False
-    
+
     sleep_dur = 0.01
     time.sleep(sleep_dur)
     dev.led1 = True
