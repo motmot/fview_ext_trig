@@ -28,6 +28,9 @@ correlated with other activity.
 What
 ----
 
+.. image:: usbkey.jpg
+  :alt: Atmel AT90USBKEY
+
 Camtrig is firmware for the $30 AT90USBKEY__ USB development board
 that:
 
@@ -42,29 +45,48 @@ __ http://atmel.com/dyn/products/tools_card.asp?tool_id=3879
    PC is able to make a model of the gain and offset of the two clocks
    with computed precision.
 3. acquires analog voltage streams. The AT90USBKEY has a multiplexed
-   10-bit analog-to-digital converter (ADC), which can sample from
-   0.0 to 3.3 volts and operates up to 9.6 KHz using pycamtrig.
+   10-bit analog-to-digital converter (ADC), which can sample from 0.0
+   to 3.3 volts and operates up to 9.6 KHz using
+   :mod:`fview_ext_trig`.
 4. produces digital pulses to trigger other hardware.
 5. provides a GUI plugin to :mod:`fview` that includes a display like a
-   strip-chart recorder.
+   strip-chart recorder. This plugin is :mod:`fview_ext_trig`.
+
+.. image:: motmot.fview_ext_trig/screenshot-small.png
 
 How
 ---
 
 The device is accessed using the Python :mod:`fview_ext_trig` package.
 
-Camtrig is built with GCC-AVR using the `LUFA library`__ for the
+Camtrig is built with GCC-AVR using the LUFA_ library for the
 AT90USBKEY. To load the firmware onto the device, use
-`dfu-programmer`__ or FLIP__ to transfer the hex file `camtrig.hex`_
-to the device in Device Firmware Upload (DFU) mode.
+`dfu-programmer`__ or FLIP__ to transfer the hex file camtrig.hex_ to
+the device in Device Firmware Upload (DFU) mode.
 
-__ http://www.fourwalledcubicle.com/LUFA.php
 __ http://dfu-programmer.sourceforge.net/
 __ http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3886
 
-.. _camtrig.hex: XXX
+Where
+-----
+
+The source code for the camera trigger device is kept in a git
+repository at http://github.com/astraw/motmot-camtrig/tree/master
+. This is a different location than the rest of the motmot_ repository
+because of the tight coupling between the LUFA_ library and the
+trigger device firmware, which git makes easy to
+handle. Alternatively, download the released Python code at the `PyPI
+page`_ and the firmware, camtrig.hex_, from github.
+
+.. _motmot: http://code.astraw.com/projects/motmot
+.. _LUFA: http://www.fourwalledcubicle.com/LUFA.php
+.. _PyPI page: XXX
+.. _camtrig.hex: http://github.com/astraw/motmot-camtrig/raw/master/Projects/MotmotCamTrig/camtrig.hex
+
+More information
+----------------
 
 .. toctree::
   :maxdepth: 1
 
-  firmware/README.rst
+  README-firmware.rst

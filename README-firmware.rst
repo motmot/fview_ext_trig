@@ -16,9 +16,11 @@ Building
 --------
 
 **Note**: the .hex file (encoded firmware machine code) is already
-precompiled as ``camtrig.hex`` (using avr-gcc 4.3.2 on Ubuntu
+precompiled as `camtrig.hex`_ (using avr-gcc 4.3.2 on Ubuntu
 Jaunty). Thus, you don't have to compile this code unless you want to
 change something.
+
+.. _camtrig.hex: http://github.com/astraw/motmot-camtrig/raw/master/Projects/MotmotCamTrig/camtrig.hex
 
 in linux
 """"""""
