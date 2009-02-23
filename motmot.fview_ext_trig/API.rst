@@ -30,10 +30,17 @@ device <fview_ext_trig-overview>`. There are three top-level modules:
 
 __ http://code.enthought.com/projects/traits/
 
-fview_ext_trig
-==============
 
-This is the Python package to interact with the :ref:`camtrig <camtrig>` device.
+
+
+:mod:`fview_ext_trig.fview_ext_trig`
+====================================
+
+This Python module implements a class, :class:`FviewExtTrig`, that
+provides an :mod:`fview` plugin to use the :ref:`camtrig <camtrig>`
+device. In the fview_ext_trig setup.py file, this class is registered
+as an FView plugin (see :ref:`writing FView plugins
+<fview-plugin-writing>`).
 
 fview_ext_trig requirements
 ---------------------------
