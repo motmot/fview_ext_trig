@@ -32,6 +32,8 @@ class LiveTimestampModeler(traits.HasTraits):
     sync_interval = traits.Float(2.0)
     has_ever_synchronized = traits.Bool(False,transient=True)
 
+    frame_offset_changed = traits.Event
+
     timestamps = traits.Array(dtype=np.float)
 
     framestamps = traits.Array(dtype=np.float)
@@ -194,12 +196,16 @@ class LiveTimestampModeler(traits.HasTraits):
     def set_trigger_device(self,device):
         self._trigger_device = device
 
-    def _get_now_framestamp(self,max_error_seconds=0.003):
+    def _get_now_framestamp(self,max_error_seconds=0.003,full_output=False):
         count = 0
         while count <= 10:
             now1 = time.time()
-            framestamp = self._trigger_device.get_framestamp()
+            results = self._trigger_device.get_framestamp(full_output=full_output)
             now2 = time.time()
+            if full_output:
+                framestamp, framecount, tcnt = results
+            else:
+                framestamp = results
             count += 1
             measurement_error = abs(now2-now1)
             if framestamp%1.0 < 0.1:
@@ -216,7 +222,11 @@ class LiveTimestampModeler(traits.HasTraits):
                 'workaround MCU bug')
 
         now = (now1+now2)*0.5
-        return now, framestamp
+        if full_output:
+            results = now, framestamp, now1, now2, framecount, tcnt
+        else:
+            results = now, framestamp
+        return results
 
     def clear_samples(self,call_update=True):
         self.timestamps = np.empty( (0,))
@@ -224,7 +234,7 @@ class LiveTimestampModeler(traits.HasTraits):
         if call_update:
             self.update()
 
-    def update(self):
+    def update(self,return_last_measurement_info=False):
         """call this function fairly often to pump information from the USB device"""
         if self.synchronizing_info is not None:
             done_time, orig_fps = self.synchronizing_info
@@ -236,7 +246,10 @@ class LiveTimestampModeler(traits.HasTraits):
                 self.synchronizing_info = None
                 self.has_ever_synchronized = True
 
-        now, framestamp = self._get_now_framestamp()
+        results = self._get_now_framestamp(full_output=return_last_measurement_info)
+        now, framestamp = results[:2]
+        if return_last_measurement_info:
+            start_timestamp, stop_timestamp, framecount, tcnt = results[2:]
 
         self.timestamps = np.hstack((self.timestamps,[now]))
         self.framestamps = np.hstack((self.framestamps,[framestamp]))
@@ -247,7 +260,13 @@ class LiveTimestampModeler(traits.HasTraits):
             self.timestamps = self.timestamps[-50:]
             self.framestamps = self.framestamps[-50:]
 
-    def register_frame(self, id_string, framenumber, frame_timestamp):
+        if return_last_measurement_info:
+            return start_timestamp, stop_timestamp, framecount, tcnt
+
+    def get_frame_offset(self,id_string):
+        return self.frame_offsets[id_string]
+
+    def register_frame(self, id_string, framenumber, frame_timestamp, full_output=False):
         """note that a frame happened and return start-of-frame time"""
 
         # This may get called from another thread (e.g. the realtime
@@ -264,24 +283,40 @@ class LiveTimestampModeler(traits.HasTraits):
         last_frame_timestamp = self.last_frame.get(id_string,0.0)
         this_interval = frame_timestamp-last_frame_timestamp
 
+        did_frame_offset_change = False
         if this_interval > self.sync_interval:
-            # re-synchronize camera
+            if self.block_activity:
+                print('changing frame offset is disallowed, but you attempted to do it. ignoring.')
+            else:
+                # re-synchronize camera
 
-            # XXX need to figure out where two frame offset comes from:
-            self.frame_offsets[id_string] = framenumber-2
+                # XXX need to figure out where frame offset of two comes from:
+                self.frame_offsets[id_string] = framenumber-2
+                did_frame_offset_change = True
 
         self.last_frame[id_string] = frame_timestamp
+
+        if did_frame_offset_change:
+            self.frame_offset_changed = True # fire any listeners
 
         result = self.gain_offset_residuals
         if result is None:
             # not enough data
-            return None
+            if full_output:
+                results = None, None, did_frame_offset_change
+            else:
+                results = None
+            return results
 
         gain,offset,residuals = result
         corrected_framenumber = framenumber-self.frame_offsets[id_string]
         trigger_timestamp = corrected_framenumber*gain + offset
 
-        return trigger_timestamp
+        if full_output:
+            results = trigger_timestamp, corrected_framenumber, did_frame_offset_change
+        else:
+            results = trigger_timestamp
+        return results
 
 class AnalogInputChannelViewer(traits.HasTraits):
     index = traits.Array(dtype=np.float)

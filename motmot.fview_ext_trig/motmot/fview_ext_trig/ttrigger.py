@@ -330,7 +330,7 @@ class DeviceModel(traits.HasTraits):
             new_t3_state.ocr3a = ocr3a
         self._t3_state = new_t3_state # atomic update
 
-    def get_framestamp(self):
+    def get_framestamp(self,full_output=False):
         """Get the framestamp and the value of PORTC
 
         The framestamp includes fraction of IFI until next frame.
@@ -339,7 +339,14 @@ class DeviceModel(traits.HasTraits):
         between frame ticks.
         """
         if not self._have_trigger:
-            return time.time()
+            now = time.time()
+            if full_output:
+                framecount = now//1
+                tcnt3 = now%1.0
+                results = now, framecount, tcnt3
+            else:
+                results = now
+            return results
         buf = ctypes.create_string_buffer(1)
         buf[0] = chr(CAMTRIG_GET_FRAMESTAMP_NOW)
         self._send_buf(buf)
@@ -354,7 +361,11 @@ class DeviceModel(traits.HasTraits):
                   'large fractional value in framestamp. resetting')
             frac=1
         framestamp = framecount+frac
-        return framestamp
+        if full_output:
+            results = framestamp, framecount, tcnt3
+        else:
+            results = framestamp
+        return results
 
     def get_analog_input_buffer_rawLE(self):
         if not self._have_trigger:
