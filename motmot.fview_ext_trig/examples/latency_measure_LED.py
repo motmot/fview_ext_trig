@@ -7,7 +7,7 @@ cam_iface = cam_iface_choose.import_backend( 'unity', 'ctypes' )
 
 import time, sys, os, warnings
 from optparse import OptionParser
-import threading
+import threading, Queue
 import numpy as np
 
 if sys.platform.startswith('linux'):
@@ -103,6 +103,35 @@ def flush_incoming_frames(cam,trigdev,dur=0.3):
             pass
         now = time_func()
 
+def LED_pulse_time_randomizer(trigdev,
+                              LED_pulse_time_queue,
+                              trigger_LED_on,
+                              trigger_LED_off,
+                              interval):
+    """mainloop for thread to pulse LED on and off at random times
+
+    Trigger LED onset with variable latency. This breaks any
+    phase-locking that would happen if the LED was triggered
+    immediately upon frame return from the camera.
+    """
+    # starts with LED off, wait for on command
+    while 1:
+        trigger_LED_on.wait()
+        trigger_LED_on.clear()
+        wait_dur = np.random.uniform(0.0,interval)
+        time.sleep(wait_dur)
+        LED_pulse_time = time_func()
+        trigdev.led1 = True
+        LED_pulse_time_queue.put(LED_pulse_time)
+
+        trigger_LED_off.wait()
+        trigger_LED_off.clear()
+        wait_dur = np.random.uniform(0.0,interval)
+        time.sleep(wait_dur)
+        LED_pulse_time = time_func()
+        trigdev.led1 = False
+        LED_pulse_time_queue.put(LED_pulse_time)
+
 def doit(device_num=0,
          mode_num=0,
          num_buffers=30,
@@ -158,6 +187,20 @@ def doit(device_num=0,
     trigdev.led1 = False
     flush_incoming_frames(cam,trigdev)
 
+    LED_pulse_time_queue = Queue.Queue()
+    trigger_LED_on = threading.Event()
+    trigger_LED_off = threading.Event()
+
+    interval = 1.0/fps
+    LED_thread = threading.Thread( target=LED_pulse_time_randomizer,
+                                   args=(trigdev,
+                                         LED_pulse_time_queue,
+                                         trigger_LED_on,
+                                         trigger_LED_off,
+                                         interval) )
+    LED_thread.setDaemon(True)
+    LED_thread.start()
+
     state = 'LED1 off, flushed'
     assert timestamp_modeler.has_ever_synchronized==False
 
@@ -185,8 +228,7 @@ def doit(device_num=0,
         frame_mean = np.mean(buf)
 
         if state == 'LED1 off, flushed':
-            LED_pulse_time = time_func()
-            trigdev.led1 = True
+            trigger_LED_on.set()
             state = 'LED1 on, waiting'
         elif state == 'LED1 on, waiting':
             if frame_mean < threshold:
@@ -194,22 +236,22 @@ def doit(device_num=0,
                 pass # wait for first frame with LED on
             else:
                 # LED on
+                LED_pulse_time = LED_pulse_time_queue.get()
                 latency_sec = now-LED_pulse_time
                 print 'latency: %.1f msec (model: %.1f msec)'%(latency_sec*1e3,
                                                                model_latency_sec*1e3)
 
-                LED_pulse_time = time_func()
-                trigdev.led1 = False
+                trigger_LED_off.set()
                 state = 'LED1 off, waiting'
         elif state == 'LED1 off, waiting':
             if frame_mean < threshold:
                 # LED off
+                LED_pulse_time = LED_pulse_time_queue.get()
                 latency_sec = now-LED_pulse_time
                 print 'latency: %.1f msec (model: %.1f msec)'%(latency_sec*1e3,
                                                                model_latency_sec*1e3)
 
-                LED_pulse_time = time_func()
-                trigdev.led1 = True
+                trigger_LED_on.set()
                 state = 'LED1 on, waiting'
             else:
                 # LED on
