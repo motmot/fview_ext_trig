@@ -14,7 +14,10 @@ if sys.platform.startswith('linux'):
 
 def update_model(timestamp_modeler):
     while 1:
-        timestamp_modeler.update()
+        try:
+            timestamp_modeler.update()
+        except ltm.ImpreciseMeasurementError,err:
+            print 'ignoring error',err
         time.sleep(0.5)
 
 def main():
