@@ -1,7 +1,7 @@
 import pkg_resources
 import motmot.cam_iface.choose as cam_iface_choose
-import fview_ext_trig.ttrigger as ttrigger
-import fview_ext_trig.live_timestamp_modeler as ltm
+import motmot.fview_ext_trig.ttrigger as ttrigger
+import motmot.fview_ext_trig.live_timestamp_modeler as ltm
 
 cam_iface = cam_iface_choose.import_backend( 'unity', 'ctypes' )
 

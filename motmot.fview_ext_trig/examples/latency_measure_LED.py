@@ -1,7 +1,7 @@
 import pkg_resources
 import motmot.cam_iface.choose as cam_iface_choose
-import fview_ext_trig.ttrigger as ttrigger
-import fview_ext_trig.live_timestamp_modeler as ltm
+import motmot.fview_ext_trig.ttrigger as ttrigger
+import motmot.fview_ext_trig.live_timestamp_modeler as ltm
 
 cam_iface = cam_iface_choose.import_backend( 'unity', 'ctypes' )
 
@@ -183,7 +183,7 @@ def doit(device_num=0,
 
         model_latency_sec = now-trigger_timestamp
         frame_mean = np.mean(buf)
-        
+
         if state == 'LED1 off, flushed':
             LED_pulse_time = time_func()
             trigdev.led1 = True
@@ -214,7 +214,7 @@ def doit(device_num=0,
             else:
                 # LED on
                 pass # wait for first frame with LED off
-            
+
 
 #         if trigger_timestamp is None:
 #             continue
