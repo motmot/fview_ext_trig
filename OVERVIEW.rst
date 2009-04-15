@@ -90,3 +90,4 @@ More information
   :maxdepth: 1
 
   README-firmware.rst
+  wiring.rst
