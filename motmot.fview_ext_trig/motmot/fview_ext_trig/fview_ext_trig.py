@@ -2,7 +2,7 @@ from __future__ import with_statement, division
 
 import pkg_resources
 import motmot.utils.config
-import os, sys, pickle, warnings, time, threading
+import os, sys, pickle, warnings, time, threading, traceback
 if 1:
     # https://mail.enthought.com/pipermail/enthought-dev/2008-May/014709.html
     import logging
@@ -66,7 +66,22 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
 
         # It not possible, create ourself anew
         if not loaded:
-            self.trigger_device = ttrigger.DeviceModel()
+            try:
+                self.trigger_device = ttrigger.DeviceModel()
+            except Exception,err:
+                formatted_error = traceback.format_exc(err)
+                msg = 'While attempting to open the CamTrig USB device,\n' \
+                      'FView encountered an error. The error is:\n\n' \
+                      '%s\n\n' \
+                      'More details:\n' \
+                      '%s\n\n' \
+                      'FView will now close.'%( err, formatted_error )
+                dlg = wx.MessageDialog(self.frame, msg,
+                                       'FView plugin error',
+                                       wx.OK | wx.ICON_ERROR)
+                dlg.ShowModal()
+                dlg.Destroy()
+                raise
 
         self.timestamp_modeler = LiveTimestampModelerWithAnalogInput(
             viewer=AnalogInputViewer())
