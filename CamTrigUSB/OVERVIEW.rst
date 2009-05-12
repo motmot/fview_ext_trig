@@ -52,7 +52,7 @@ __ http://atmel.com/dyn/products/tools_card.asp?tool_id=3879
 5. provides a GUI plugin to :mod:`fview` that includes a display like a
    strip-chart recorder. This plugin is :mod:`fview_ext_trig`.
 
-.. image:: motmot.fview_ext_trig/screenshot-small.png
+.. image:: screenshot-small.png
 
 How
 ---
