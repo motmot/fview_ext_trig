@@ -280,7 +280,7 @@ class LiveTimestampModeler(traits.HasTraits):
         # objects, I believe the operations are atomic and thus this
         # function is OK.
 
-        last_frame_timestamp = self.last_frame.get(id_string,0.0)
+        last_frame_timestamp = self.last_frame.get(id_string,-np.inf)
         this_interval = frame_timestamp-last_frame_timestamp
 
         did_frame_offset_change = False
