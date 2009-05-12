@@ -20,7 +20,7 @@ precompiled as `camtrig.hex`_ (using avr-gcc 4.3.2 on Ubuntu
 Jaunty). Thus, you don't have to compile this code unless you want to
 change something.
 
-.. _camtrig.hex: http://github.com/astraw/motmot-camtrig/raw/master/Projects/MotmotCamTrig/camtrig.hex
+.. _camtrig.hex: http://github.com/motmot/fview_ext_trig/raw/master/CamTrigUSB/Projects/MotmotCamTrig/camtrig.hex
 
 in linux
 """"""""

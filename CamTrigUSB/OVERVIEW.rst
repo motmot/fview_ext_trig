@@ -70,18 +70,17 @@ __ http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3886
 Where
 -----
 
-The source code for the camera trigger device is kept in a git
-repository at http://github.com/astraw/motmot-camtrig/tree/master
-. This is a different location than the rest of the motmot_ repository
-because of the tight coupling between the LUFA_ library and the
-trigger device firmware, which git makes easy to
-handle. Alternatively, download the released Python code at the `PyPI
-page`_ and the firmware, camtrig.hex_, from github.
+The source code for the camera trigger device is kept in the
+`fview_ext_trig git repository`_ under the `CamTrigUSB directory`_.
+Alternatively, download the released Python code at the `PyPI page`_
+and the firmware, camtrig.hex_, from github.
 
+.. _fview_ext_trig git repository: http://github.com/motmot/fview_ext_trig/tree/master/
+.. _CamTrigUSB directory: http://github.com/motmot/fview_ext_trig/tree/master/CamTrigUSB
 .. _motmot: http://code.astraw.com/projects/motmot
 .. _LUFA: http://www.fourwalledcubicle.com/LUFA.php
 .. _PyPI page: http://pypi.python.org/pypi/motmot.fview_ext_trig
-.. _camtrig.hex: http://github.com/astraw/motmot-camtrig/raw/master/Projects/MotmotCamTrig/camtrig.hex
+.. _camtrig.hex: http://github.com/motmot/fview_ext_trig/raw/master/CamTrigUSB/Projects/MotmotCamTrig/camtrig.hex
 
 More information
 ----------------
