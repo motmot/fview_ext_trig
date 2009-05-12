@@ -1,8 +1,5 @@
-*.lst
-*.o
-*.map
-*.sym
-*.lss
-*.elf
-*.eep
-.dep
+*~
+*.pyc
+build
+motmot/fview_ext_trig/cDecode.c
+motmot/fview_ext_trig/cDecode.so
