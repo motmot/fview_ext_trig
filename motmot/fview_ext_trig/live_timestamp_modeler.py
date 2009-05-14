@@ -195,6 +195,8 @@ class LiveTimestampModeler(traits.HasTraits):
 
     def set_trigger_device(self,device):
         self._trigger_device = device
+        self._trigger_device.on_trait_event(self._on_trigger_device_reset_AIN_overflow_fired,
+                                            name='reset_AIN_overflow')
 
     def _get_now_framestamp(self,max_error_seconds=0.003,full_output=False):
         count = 0
@@ -377,9 +379,11 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
     ain_raw_word_queue = traits.Instance(Queue.Queue,transient=True)
     timer3_top = traits.Property() # necessary to calculate precise timestamps for AIN data
     channel_names = traits.Property()
+    ain_overflowed = traits.Int(0,transient=True) # integer for display (boolean readonly editor ugly)
 
     traits_view = View(Group(Item( 'synchronize', show_label = False ),
                              Item( 'view_time_model_plot', show_label = False ),
+                             Item('ain_overflowed',style='readonly'),
                              Item( name='gain',
                                    style='readonly',
                                    editor=TextEditor(evaluate=float,
@@ -431,6 +435,9 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
             result = None
         return result
 
+    def _on_trigger_device_reset_AIN_overflow_fired(self):
+        self.ain_overflowed = 0
+
     def update_analog_input(self):
         """call this function frequently to avoid overruns"""
         new_data_raw = self._trigger_device.get_analog_input_buffer_rawLE()
@@ -459,6 +466,7 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
 
         if any_overflow:
             # XXX should move to logging the error.
+            self.ain_overflowed = 1
             raise AnalogDataOverflowedError()
 
         if len(chan_all)==0:
