@@ -28,6 +28,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     latency_estimate_msec = traits.Float
     residual_error = traits.Float
     query_AIN_interval = traits.Range(low=10,high=1000,value=300)
+    last_trigger_timestamp = traits.Any(transient=True)
 
     traits_view = View( Group( ( Item( 'trigger_device', style='custom',
                                        show_label=False),
@@ -48,6 +49,8 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     def __init__(self,*args,**kw):
         kw['wxFrame args']=(-1,self.plugin_name,wx.DefaultPosition,wx.Size(600,688))
         super(FviewExtTrig,self).__init__(*args,**kw)
+
+        self.last_trigger_timestamp = {}
 
         # load from persisted state if possible
 
@@ -157,7 +160,11 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
 
             # trigger call to self.OnDataReady
             wx.PostEvent(self.frame, event)
+        self.last_trigger_timestamp[cam_id] = trigger_timestamp
         return [], []
+
+    def get_last_trigger_timestamp(self,cam_id):
+        return self.last_trigger_timestamp[cam_id]
 
     def quit(self):
         pickle.dump(self.trigger_device,open(self.pkl_fname,mode='w'))
