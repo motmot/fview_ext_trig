@@ -198,6 +198,9 @@ class LiveTimestampModeler(traits.HasTraits):
         self._trigger_device.on_trait_event(self._on_trigger_device_reset_AIN_overflow_fired,
                                             name='reset_AIN_overflow')
 
+    def _on_trigger_device_reset_AIN_overflow_fired(self):
+        self.ain_overflowed = 0
+
     def _get_now_framestamp(self,max_error_seconds=0.003,full_output=False):
         count = 0
         while count <= 10:
@@ -434,9 +437,6 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
         else:
             result = None
         return result
-
-    def _on_trigger_device_reset_AIN_overflow_fired(self):
-        self.ain_overflowed = 0
 
     def update_analog_input(self):
         """call this function frequently to avoid overruns"""
