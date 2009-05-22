@@ -41,3 +41,16 @@ give a 3x gain, which will saturate the op-amp given a 6V power supply
 and a 3.3V input from the AT90USB device. The +6 V power is taken from
 an external power supply, which can be connected into the trigger box
 via the provided plug.
+
+Example implementation
+----------------------
+
+Andrew Straw built the trigger device pictured below, which was
+photographed and illustrated by Paolo Segre. It is meant to trigger
+multiple cameras from the Camera Sync Trigger pin, and thus brings
+this amplified signal out to the bottom row of BNC connectors. (The
+top row of BNCs is available for exansion and is currently unused.)
+
+.. image:: camtrig_example.jpg
+  :width: 800
+  :height: 715
