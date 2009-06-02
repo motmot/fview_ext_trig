@@ -48,6 +48,9 @@ def debug(*args):
     if 0:
         print >> sys.stderr, ' '.join([str(arg) for arg in args])
 
+class NoDataError(Exception):
+    pass
+
 class RemoteFpsFloat(traits.BaseFloat):
     """a floating point number that validates any attempted change"""
     info_text = 'a float'
@@ -168,7 +171,7 @@ class DeviceModel(traits.HasTraits):
     # Private runtime details
     _libusb_handle = traits.Any(None,transient=True)
     _lock = traits.Any(None,transient=True) # lock access to the handle
-    _have_trigger = traits.Bool(True,transient=True) # real USB device present
+    _have_trigger = traits.Bool(False,transient=True) # real USB device present
 
     ignore_version_mismatch = traits.Bool(False, transient=True)
 
@@ -351,6 +354,8 @@ class DeviceModel(traits.HasTraits):
         buf[0] = chr(CAMTRIG_GET_FRAMESTAMP_NOW)
         self._send_buf(buf)
         data = self._read_buf()
+        if data is None:
+            raise NoDataError('no data available from device')
         framecount = 0
         for i in range(8):
             framecount += ord(data[i]) << (i*8)
@@ -544,9 +549,8 @@ class DeviceModel(traits.HasTraits):
             if int(os.environ.get('REQUIRE_TRIGGER','1')):
                 raise RuntimeError("Cannot find device. (Perhaps run with "
                                    "environment variable REQUIRE_TRIGGER=0.)")
-            else:
-                self._have_trigger = False
-                return
+            self._have_trigger = False
+            return
         with self._lock:
             self._libusb_handle = usb.open(dev)
 
@@ -577,6 +581,7 @@ class DeviceModel(traits.HasTraits):
             config = dev.config[0]
             usb.set_configuration(self._libusb_handle, config.bConfigurationValue)
             usb.claim_interface(self._libusb_handle, interface_nr)
+        self._have_trigger = True
 
 class DeviceModelAnyVersion(DeviceModel):
     """Allow opening of device when firmware version does not match expectations

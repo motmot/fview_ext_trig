@@ -205,7 +205,11 @@ class LiveTimestampModeler(traits.HasTraits):
         count = 0
         while count <= 10:
             now1 = time.time()
-            results = self._trigger_device.get_framestamp(full_output=full_output)
+            try:
+                results = self._trigger_device.get_framestamp(full_output=full_output)
+            except ttrigger.NoDataError:
+                raise ImpreciseMeasurementError(
+                    'no data available')
             now2 = time.time()
             if full_output:
                 framestamp, framecount, tcnt = results
