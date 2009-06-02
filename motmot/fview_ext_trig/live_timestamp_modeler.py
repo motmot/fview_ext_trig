@@ -282,7 +282,7 @@ class LiveTimestampModeler(traits.HasTraits):
         # image processing thread).
 
         # An important note about locking and thread safety: This code
-        # relyies on the Python interpreter to lock data structures
+        # relies on the Python interpreter to lock data structures
         # across threads. To do this internally, a lock would be made
         # for each variable in this instance and acquired before each
         # access. Because the data structures are simple Python
