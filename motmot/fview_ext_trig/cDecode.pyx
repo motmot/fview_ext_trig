@@ -2,6 +2,7 @@
 import numpy as np
 cimport numpy as np
 import sys
+import cython
 
 # The wordstream is little-endian and we assume the processor is, too.
 assert sys.byteorder=='little', 'This module assumes a little-endian system'
@@ -30,6 +31,7 @@ cdef extern from "decode.h":
 cdef extern from "string.h":
      ctypedef int size_t
 
+@cython.boundscheck(False)
 def process(np.ndarray[uint16_t, ndim=1] buf, int check_LSB_errors=1 ):
      """decode an ADC wordstream
 
