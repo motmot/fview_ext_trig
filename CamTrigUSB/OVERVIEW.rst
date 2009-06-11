@@ -47,17 +47,17 @@ __ http://atmel.com/dyn/products/tools_card.asp?tool_id=3879
 3. acquires analog voltage streams. The AT90USBKEY has a multiplexed
    10-bit analog-to-digital converter (ADC), which can sample from 0.0
    to 3.3 volts and operates up to 9.6 KHz using
-   :mod:`fview_ext_trig`.
+   :mod:`motmot.fview_ext_trig`.
 4. produces digital pulses to trigger other hardware.
 5. provides a GUI plugin to :mod:`fview` that includes a display like a
-   strip-chart recorder. This plugin is :mod:`fview_ext_trig`.
+   strip-chart recorder. This plugin is :mod:`motmot.fview_ext_trig`.
 
 .. image:: screenshot-small.png
 
 How
 ---
 
-The device is accessed using the Python :mod:`fview_ext_trig` package.
+The device is accessed using the Python :mod:`motmot.fview_ext_trig` package.
 
 Camtrig is built with GCC-AVR using the LUFA_ library for the
 AT90USBKEY. To load the firmware onto the device, use
