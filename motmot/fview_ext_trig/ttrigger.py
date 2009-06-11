@@ -646,6 +646,11 @@ def set_frequency():
         parser.print_help()
         sys.exit(1)
 
+    if options.freq is None:
+        print >> sys.stderr, ('No requency specified. Use '
+                              '--freq=XX where XX is the frequency')
+        sys.exit(1)
+
     if options.ignore_version_mismatch:
         cls = DeviceModelAnyVersion
     else:
