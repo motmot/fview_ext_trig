@@ -70,12 +70,13 @@ rules file to the appropriate location::
 
   sudo cp 99-motmot-cam-trig.rules /etc/udev/rules.d/
 
-This will automatically allow users of the group "camtrigger" to
-access the device without special permissions. So, create this group
-and add yourself to it::
+This will automatically allow users of the group "video" to access the
+device without special permissions. These instructions assume the
+video group exists and you are already a member. To check this, type::
 
-  sudo addgroup camtrigger
-  sudo addgroup $USER camtrigger
+  groups
+
+If `video` appears in the output, you are already a member of the video group.
 
 Finally, you will need for the above changes to take effect. The
 easiest way is to reboot your computer. If you want to avoid that, try this::
