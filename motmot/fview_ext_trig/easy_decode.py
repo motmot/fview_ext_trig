@@ -47,6 +47,8 @@ def easy_decode(data_raw,gain,offset,top):
         if did_overflow:
             any_overflow = True
 
+    if not len(newdata_all):
+        return None
     newdata_all = np.hstack(newdata_all)
     chan_all = np.hstack(chan_all)
 
