@@ -166,16 +166,15 @@ class LiveTimestampModeler(traits.HasTraits):
         if timestamps is None:
             return None
 
-        if len(timestamps)<2:
-            return None
-
         if len(timestamps) != len(framestamps):
+            # truncate to same length
             if len(timestamps) > len(framestamps):
-                # truncate to same length
                 timestamps = timestamps[:len(framestamps)]
             else:
-                return None
-                #raise ValueError('timestamps and framestamps not same length')
+                framestamps = framestamps[:len(timestamps)]
+
+        if len(timestamps)<2:
+            return None
 
         self.timestamp_data_queue.put( (timestamps,framestamps) )
 
