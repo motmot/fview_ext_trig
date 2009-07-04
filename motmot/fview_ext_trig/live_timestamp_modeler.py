@@ -377,6 +377,7 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
     ain_raw_word_queue = traits.Instance(Queue.Queue,transient=True)
     timer3_top = traits.Property() # necessary to calculate precise timestamps for AIN data
     channel_names = traits.Property()
+    Vcc = traits.Property(depends_on='_trigger_device')
     ain_overflowed = traits.Int(0,transient=True) # integer for display (boolean readonly editor ugly)
 
     traits_view = View(Group(Item( 'synchronize', show_label = False ),
@@ -405,6 +406,10 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
     def __init__(self,*args,**kwargs):
         super(LiveTimestampModelerWithAnalogInput,self).__init__(*args,**kwargs)
         self.ain_raw_word_queue = Queue.Queue()
+
+    @traits.cached_property
+    def _get_Vcc(self):
+        return self._trigger_device.Vcc
 
     def _get_timer3_top(self):
         return self._trigger_device.timer3_top

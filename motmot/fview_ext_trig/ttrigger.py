@@ -115,7 +115,12 @@ class DeviceAnalogInState(traits.HasTraits):
                                                    'AIN0_enabled','AIN1_enabled',
                                                    'AIN2_enabled','AIN3_enabled',])
 
-    traits_view = View(Group(Item('AIN_running'),
+    # but useful when plotting/saving data
+    Vcc = traits.Float(3.3)
+
+    traits_view = View(Group(Group(Item('AIN_running'),
+                                   Item('Vcc'),
+                                   orientation='horizontal'),
                                    Group(Item('AIN0_enabled',padding=0),
                                          Item('AIN1_enabled',padding=0),
                                          padding=0,
@@ -201,6 +206,7 @@ class DeviceModel(traits.HasTraits):
 
     # Analog input state:
     _ain_state = traits.Instance(DeviceAnalogInState) # atomic updates
+    Vcc = traits.Property(depends_on='_ain_state')
 
     enabled_channels = traits.Property(depends_on='_ain_state')
 
@@ -279,6 +285,10 @@ class DeviceModel(traits.HasTraits):
         return bool(self._led_state & LEDS_LED4)
     def _set_led4(self,value):
         self._set_led_mask(LEDS_LED4,value)
+
+    @traits.cached_property
+    def _get_Vcc(self):
+        return self._ain_state.Vcc
 
     @traits.cached_property
     def _get_enabled_channels(self):
