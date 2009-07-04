@@ -374,7 +374,7 @@ class AnalogInputViewer(traits.HasTraits):
         )
     def __init__(self,*args,**kwargs):
         super(AnalogInputViewer,self).__init__(*args,**kwargs)
-        for usb_channel_num in [1,2,3]:
+        for usb_channel_num in [0,1,2,3]:
             self.channels.append(AnalogInputChannelViewer(
                 device_channel_num=usb_channel_num))
 
