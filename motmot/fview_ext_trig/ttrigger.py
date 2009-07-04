@@ -4,7 +4,6 @@ import ctypes
 import sys, time, os, threading, warnings
 import enthought.traits.api as traits
 from enthought.traits.ui.api import View, Item, Group
-import pickle
 import numpy as np
 from optparse import OptionParser
 
