@@ -34,9 +34,9 @@ class LiveTimestampModeler(traits.HasTraits):
 
     frame_offset_changed = traits.Event
 
-    timestamps = traits.Array(dtype=np.float)
-
-    framestamps = traits.Array(dtype=np.float)
+    timestamps_framestamps = traits.Array(
+        shape=(None,2),
+        dtype=np.float)
 
     timestamp_data_queue = traits.Instance(Queue.Queue,transient=True)
     block_activity = traits.Bool(False,transient=True)
@@ -45,7 +45,7 @@ class LiveTimestampModeler(traits.HasTraits):
     synchronizing_info = traits.Any(None)
 
     gain_offset_residuals = traits.Property(
-        depends_on = ['timestamps','framestamps'] )
+        depends_on = ['timestamps_framestamps'] )
 
     residual_error = traits.Property(
         depends_on = 'gain_offset_residuals' )
@@ -161,17 +161,11 @@ class LiveTimestampModeler(traits.HasTraits):
 
     @traits.cached_property
     def _get_gain_offset_residuals( self ):
-        timestamps = self.timestamps
-        framestamps = self.framestamps
-        if timestamps is None:
+        if self.timestamps_framestamps is None:
             return None
 
-        if len(timestamps) != len(framestamps):
-            # truncate to same length
-            if len(timestamps) > len(framestamps):
-                timestamps = timestamps[:len(framestamps)]
-            else:
-                framestamps = framestamps[:len(timestamps)]
+        timestamps = self.timestamps_framestamps[:,0]
+        framestamps = self.timestamps_framestamps[:,1]
 
         if len(timestamps)<2:
             return None
@@ -237,8 +231,7 @@ class LiveTimestampModeler(traits.HasTraits):
         return results
 
     def clear_samples(self,call_update=True):
-        self.timestamps = np.empty( (0,))
-        self.framestamps = np.empty( (0,))
+        self.timestamps_framestamps = np.empty( (0,2))
         if call_update:
             self.update()
 
@@ -259,14 +252,13 @@ class LiveTimestampModeler(traits.HasTraits):
         if return_last_measurement_info:
             start_timestamp, stop_timestamp, framecount, tcnt = results[2:]
 
-        self.timestamps = np.hstack((self.timestamps,[now]))
-        self.framestamps = np.hstack((self.framestamps,[framestamp]))
+        self.timestamps_framestamps = np.vstack((self.timestamps_framestamps,
+                                                 [now,framestamp]))
 
         # If more than 100 samples,
-        if len(self.timestamps) > 100:
+        if len(self.timestamps_framestamps) > 100:
             # keep only the most recent 50.
-            self.timestamps = self.timestamps[-50:]
-            self.framestamps = self.framestamps[-50:]
+            self.timestamps_framestamps = self.timestamps_framestamps[-50:]
 
         if return_last_measurement_info:
             return start_timestamp, stop_timestamp, framecount, tcnt
