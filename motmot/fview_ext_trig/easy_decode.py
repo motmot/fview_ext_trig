@@ -1,9 +1,10 @@
+"""process analog input wordstreams from the CamTrig device"""
 import cDecode
 import numpy as np
 import scipy
 
 def get_gain_offset_resids(input=None,output=None):
-
+    """get the gain, offset, and residuals from a least squares fit"""
     a1=input[:,np.newaxis]
     a2=np.ones( (len(input),1))
     A = np.hstack(( a1,a2))
@@ -15,6 +16,22 @@ def get_gain_offset_resids(input=None,output=None):
     return gain,offset,resids
 
 def easy_decode(data_raw,gain,offset,top):
+    """decode output of CamTrig device
+
+    **Arguments**
+    data_raw : array of uint16
+      The raw data from the device
+    gain : float
+      The gain of the CamTrig device's clock relative to host clock
+    offset : float
+      The offset of the CamTrig device's clock relative to host clock
+    top : int
+      The maximum timer value on CamTrig
+
+    **Returns**
+    r : recarray
+      The decoded results
+    """
 
     newdata_all = []
     chan_all = []
