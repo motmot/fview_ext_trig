@@ -6,7 +6,6 @@ import ttrigger
 import time
 import numpy as np
 import cDecode
-import Queue
 from enthought.chaco.chaco_plot_editor import ChacoPlotItem
 import warnings
 
@@ -38,7 +37,7 @@ class LiveTimestampModeler(traits.HasTraits):
         shape=(None,2),
         dtype=np.float)
 
-    timestamp_data_queue = traits.Instance(Queue.Queue,transient=True)
+    timestamp_data = traits.Any()
     block_activity = traits.Bool(False,transient=True)
 
     synchronize = traits.Button(label='Synchronize')
@@ -81,29 +80,6 @@ class LiveTimestampModeler(traits.HasTraits):
                              ),
                        title = 'Timestamp modeler',
                        )
-
-    def __init__(self,*args,**kwargs):
-        super(LiveTimestampModeler,self).__init__(*args,**kwargs)
-        self.timestamp_data_queue = Queue.Queue()
-
-    def pump_timestamp_data(self,flush=False):
-        """call this occasionally to avoid building up too much data in RAM"""
-        if flush:
-            self.update() # get latest information
-        rows = []
-        try:
-            while 1:
-                rows.append( self.timestamp_data_queue.get_nowait())
-        except Queue.Empty:
-            pass
-        if len(rows):
-            timestamps, framestamps = zip(*rows)
-            timestamps = np.hstack(timestamps)
-            framestamps = np.hstack(framestamps)
-            result = timestamps,framestamps
-        else:
-            result = None
-        return result
 
     def _block_activity_changed(self):
         if self.block_activity:
@@ -169,8 +145,6 @@ class LiveTimestampModeler(traits.HasTraits):
 
         if len(timestamps)<2:
             return None
-
-        self.timestamp_data_queue.put( (timestamps,framestamps) )
 
         # like model_remote_to_local in flydra.analysis
         remote_timestamps = framestamps
@@ -373,13 +347,17 @@ class AnalogInputViewer(traits.HasTraits):
 class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
     view_AIN = traits.Button(label='view analog input (AIN)')
     viewer = traits.Instance(AnalogInputViewer)
-    old_data_raw = traits.Array(dtype=np.uint16,transient=True) # analog
-    ain_raw_word_queue = traits.Instance(Queue.Queue,transient=True)
+
+    # the actual analog data (as a wordstream)
+    ain_data_raw = traits.Array(dtype=np.uint16,transient=True)
+    old_data_raw = traits.Array(dtype=np.uint16,transient=True)
+
     timer3_top = traits.Property() # necessary to calculate precise timestamps for AIN data
     channel_names = traits.Property()
     Vcc = traits.Property(depends_on='_trigger_device')
     ain_overflowed = traits.Int(0,transient=True) # integer for display (boolean readonly editor ugly)
 
+    ain_wordstream_buffer = traits.Any()
     traits_view = View(Group(Item( 'synchronize', show_label = False ),
                              Item( 'view_time_model_plot', show_label = False ),
                              Item('ain_overflowed',style='readonly'),
@@ -403,10 +381,6 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
                        title = 'Timestamp modeler',
                        )
 
-    def __init__(self,*args,**kwargs):
-        super(LiveTimestampModelerWithAnalogInput,self).__init__(*args,**kwargs)
-        self.ain_raw_word_queue = Queue.Queue()
-
     @traits.cached_property
     def _get_Vcc(self):
         return self._trigger_device.Vcc
@@ -417,27 +391,11 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
     def _get_channel_names(self):
         return self._trigger_device.enabled_channel_names
 
-    def pump_ain_wordstream_buffer(self,flush=False):
-        """call this occasionally to avoid building up too much data in RAM"""
-        if flush:
-            self.update_analog_input()
-        rows = []
-        try:
-            while 1:
-                rows.append(self.ain_raw_word_queue.get_nowait( ))
-        except Queue.Empty:
-            pass
-        if len(rows):
-            result = np.hstack(rows)
-        else:
-            result = None
-        return result
-
     def update_analog_input(self):
         """call this function frequently to avoid overruns"""
         new_data_raw = self._trigger_device.get_analog_input_buffer_rawLE()
-        self.ain_raw_word_queue.put( new_data_raw )
         data_raw = np.hstack((new_data_raw,self.old_data_raw))
+        self.ain_data_raw = new_data_raw
         newdata_all = []
         chan_all = []
         any_overflow = False

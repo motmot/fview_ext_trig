@@ -124,7 +124,10 @@ class DeviceAnalogInState(traits.HasTraits):
     Vcc = traits.Float(3.3)
 
     traits_view = View(Group(Group(Item('AIN_running'),
-                                   Item('Vcc'),
+                                   Item(
+        'Vcc',
+        tooltip=('This does not set Vcc on the AT90USBKEY. Use to record the '
+                 'value of Vcc. (default = 3.3V)')),
                                    orientation='horizontal'),
                                    Group(Item('AIN0_enabled',padding=0),
                                          Item('AIN0_name',padding=0),
