@@ -415,12 +415,7 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
         return self._trigger_device.timer3_top
 
     def _get_channel_names(self):
-        enabled_channels = self._trigger_device.enabled_channels
-        # In the future, this could hold physical meaning like "Channel 1 Voltage"
-        result = {}
-        for channel_num in enabled_channels:
-            result[channel_num] = 'ADC%d'%channel_num
-        return result
+        return self._trigger_device.enabled_channel_names
 
     def pump_ain_wordstream_buffer(self,flush=False):
         """call this occasionally to avoid building up too much data in RAM"""

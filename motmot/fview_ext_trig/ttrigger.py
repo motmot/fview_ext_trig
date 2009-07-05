@@ -96,9 +96,14 @@ class DeviceAnalogInState(traits.HasTraits):
     """
     # Analog input state
     AIN0_enabled = traits.Bool(False)
+    AIN0_name = traits.String("AIN0")
     AIN1_enabled = traits.Bool(False)
+    AIN1_name = traits.String("AIN1")
     AIN2_enabled = traits.Bool(True)
+    AIN2_name = traits.String("AIN2")
     AIN3_enabled = traits.Bool(False)
+    AIN3_name = traits.String("AIN3")
+
     adc_prescaler = traits.Trait(128.0,{
         128.0:0x07,64.0: 0x06,
         # According to Atmel's at90usb1287 manual, faster than this is
@@ -122,11 +127,15 @@ class DeviceAnalogInState(traits.HasTraits):
                                    Item('Vcc'),
                                    orientation='horizontal'),
                                    Group(Item('AIN0_enabled',padding=0),
+                                         Item('AIN0_name',padding=0),
                                          Item('AIN1_enabled',padding=0),
+                                         Item('AIN1_name',padding=0),
                                          padding=0,
                                          orientation='horizontal'),
                                    Group(Item('AIN2_enabled',padding=0),
+                                         Item('AIN2_name',padding=0),
                                          Item('AIN3_enabled',padding=0),
+                                         Item('AIN3_name',padding=0),
                                          padding=0,
                                          orientation='horizontal'),
                              Group(Item('adc_prescaler'),
@@ -209,6 +218,7 @@ class DeviceModel(traits.HasTraits):
     Vcc = traits.Property(depends_on='_ain_state')
 
     enabled_channels = traits.Property(depends_on='_ain_state')
+    enabled_channel_names = traits.Property(depends_on='_ain_state')
 
     # The view:
     traits_view = View(Group( Group(Item('frames_per_second',
@@ -301,6 +311,19 @@ class DeviceModel(traits.HasTraits):
             result.append(2)
         if self._ain_state.AIN3_enabled:
             result.append(3)
+        return result
+
+    @traits.cached_property
+    def _get_enabled_channel_names(self):
+        result = []
+        if self._ain_state.AIN0_enabled:
+            result.append(self._ain_state.AIN0_name)
+        if self._ain_state.AIN1_enabled:
+            result.append(self._ain_state.AIN1_name)
+        if self._ain_state.AIN2_enabled:
+            result.append(self._ain_state.AIN2_name)
+        if self._ain_state.AIN3_enabled:
+            result.append(self._ain_state.AIN3_name)
         return result
 
     @traits.cached_property
