@@ -1,1 +1,2 @@
 exclude CamTrigUSB/screenshot-small.png
+include motmot/fview_ext_trig/cDecode.c
