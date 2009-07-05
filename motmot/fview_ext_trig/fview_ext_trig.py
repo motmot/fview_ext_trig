@@ -18,8 +18,19 @@ import ttrigger
 from live_timestamp_modeler import LiveTimestampModelerWithAnalogInput, \
      ImpreciseMeasurementError, AnalogInputViewer
 import motmot.fview.traited_plugin as traited_plugin
+import numpy as np
+import tables
+import motmot.fview_ext_trig.data_format as data_format
 
 LatencyEstimatedEvent = wx.NewEventType()
+
+AnalogInputWordstreamDescription = data_format.AnalogInputWordstreamDescription
+AnalogInputWordstream_dtype =  tables.Description(
+    AnalogInputWordstreamDescription().columns)._v_nestedDescr
+
+TimeDataDescription = data_format.TimeDataDescription
+TimeData_dtype =  tables.Description(
+    TimeDataDescription().columns)._v_nestedDescr
 
 class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     plugin_name = 'FView external trigger'
@@ -29,6 +40,8 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     residual_error = traits.Float
     query_AIN_interval = traits.Range(low=10,high=1000,value=300)
     last_trigger_timestamp = traits.Any(transient=True)
+    save_to_disk = traits.Bool(False,transient=True)
+    streaming_filename = traits.File
 
     traits_view = View( Group( ( Item( 'trigger_device', style='custom',
                                        show_label=False),
@@ -43,6 +56,10 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
                                  orientation='horizontal'),
                                  Item( 'timestamp_modeler', style='custom',
                                        show_label=False),
+                                 Item(name='save_to_disk',
+                                      ),
+                                 Item(name='streaming_filename',
+                                      style='readonly'),
                                  )),
                         )
 
@@ -50,6 +67,10 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
         kw['wxFrame args']=(-1,self.plugin_name,wx.DefaultPosition,wx.Size(600,688))
         super(FviewExtTrig,self).__init__(*args,**kw)
 
+        self._list_of_timestamp_data = []
+        self._list_of_ain_wordstream_buffers = []
+        self.stream_ain_table   = None
+        self.stream_time_data_table = None
         self.last_trigger_timestamp = {}
 
         # load from persisted state if possible
@@ -96,6 +117,8 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
         self.latency_est_lock = threading.Lock()
         self.latency_est = None
 
+        self.streaming_file = None
+
         ID_Timer = wx.NewId()
         self.timer = wx.Timer(self.frame, ID_Timer)
         wx.EVT_TIMER(self.frame, ID_Timer, self.OnTimer)
@@ -111,6 +134,73 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
 
         self.frame_offsets = {}
 
+    def _save_to_disk_changed(self):
+        self.service_save_data()
+        if self.save_to_disk:
+            self.timestamp_modeler.block_activity = True
+
+            self.streaming_filename = time.strftime('fview_analog_data_%Y%m%d_%H%M%S.h5')
+            self.streaming_file = tables.openFile( self.streaming_filename, mode='w')
+            self.stream_ain_table   = self.streaming_file.createTable(
+                self.streaming_file.root,'ain_wordstream',AnalogInputWordstreamDescription,
+                "AIN data",expectedrows=100000)
+            names = self.timestamp_modeler.channel_names
+            print 'saving analog channels',names
+            self.stream_ain_table.attrs.channel_names = names
+
+            self.stream_ain_table.attrs.Vcc = self.timestamp_modeler.Vcc
+
+            self.stream_time_data_table = self.streaming_file.createTable(
+                self.streaming_file.root,'time_data',TimeDataDescription,
+                "time data",expectedrows=10000)
+            self.stream_time_data_table.attrs.top = self.timestamp_modeler.timer3_top
+
+            print 'saving to disk...'
+        else:
+            print 'closing file...'
+            self.stream_ain_table   = None
+            self.stream_time_data_table = None
+            self.streaming_file.close()
+            self.streaming_file = None
+            print 'closed',repr(self.streaming_filename)
+            self.streaming_filename = ''
+            self.timestamp_modeler.block_activity = False
+
+    def _timestamp_modeler_changed(self,newvalue):
+        # register our handlers
+        self.timestamp_modeler.on_trait_change(self.on_ain_data_raw,
+                                               'ain_data_raw')
+        self.timestamp_modeler.on_trait_change(self.on_timestamp_data,
+                                               'timestamps_framestamps')
+
+    def on_ain_data_raw(self,newvalue):
+        self._list_of_ain_wordstream_buffers.append(newvalue)
+
+    def on_timestamp_data(self,timestamp_framestamp_2d_array):
+        if len(timestamp_framestamp_2d_array):
+            last_sample = timestamp_framestamp_2d_array[-1,:]
+            self._list_of_timestamp_data.append(last_sample)
+
+    def service_save_data(self):
+        # analog input data...
+        bufs = self._list_of_ain_wordstream_buffers
+        self._list_of_ain_wordstream_buffers = []
+        if self.stream_ain_table is not None and len(bufs):
+            buf = np.hstack(bufs)
+            recarray = np.rec.array( [buf], dtype=AnalogInputWordstream_dtype)
+            self.stream_ain_table.append( recarray )
+            self.stream_ain_table.flush()
+
+        tsfss = self._list_of_timestamp_data
+        self._list_of_timestamp_data = []
+        if self.stream_time_data_table is not None and len(tsfss):
+            bigarr = np.vstack(tsfss)
+            timestamps = bigarr[:,0]
+            framestamps = bigarr[:,1]
+            recarray = np.rec.array( [timestamps,framestamps], dtype=TimeData_dtype)
+            self.stream_time_data_table.append( recarray )
+            self.stream_time_data_table.flush()
+
     def _query_AIN_interval_changed(self):
         self.timer2.Start(self.query_AIN_interval)
 
@@ -123,6 +213,8 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
         self.timestamp_modeler.update_analog_input()
 
     def OnTimer(self,event):
+        self.service_save_data()
+
         try:
             self.timestamp_modeler.update()
         except ImpreciseMeasurementError:
