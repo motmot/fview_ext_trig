@@ -32,6 +32,109 @@ TimeDataDescription = data_format.TimeDataDescription
 TimeData_dtype =  tables.Description(
     TimeDataDescription().columns)._v_nestedDescr
 
+class AnalogSaver:
+    pass
+
+class AnalogDataJsonSaver(AnalogSaver):
+    def __init__(self,filename,mode='wb'):
+        self._fd = open(filename,mode=mode)
+        self._ain_started=False
+        self._time_data_accum = []
+        self._top = None
+    def start_ain_stream(self,
+                         channel_names=None,
+                         Vcc=None):
+        attrs = ''
+        if channel_names is not None:
+            tmp = ', '.join(['"%s"'%n for n in channel_names])
+            channel_name_str = "[%s]"%(tmp ,)
+            attrs += '"channel_names" : %s,\n'%(channel_name_str)
+        if Vcc is not None:
+            attrs += '"Vcc" : %s,\n'%(repr(Vcc),)
+        self._fd.write('{"ain_wordstream":{%s\n'%(attrs,))
+        self._fd.write('"data" : [')
+        self._ain_started=True
+        self._ain_need_comma=False
+    def write_ain_buffers(self,bufs):
+        for buf in bufs:
+            if len(buf):
+                if self._ain_need_comma:
+                    mystr = ','
+                else:
+                    mystr = ''
+                mystr += ', '.join(map(repr,buf))
+                self._fd.write(mystr)
+                self._ain_need_comma = True
+
+    def get_time_accum(self,top=None):
+        if top is not None:
+            assert self._top is None, "self._top is already set"
+            self._top = top
+        return self._time_data_accum
+    def stop_ain_stream_and_save_time_data(self):
+        self._fd.write(']},\n')
+        attrs = ''
+        if self._top is not None:
+            attrs += '"top" : %s,\n'%(repr(self._top),)
+        self._ain_started = False
+        self._fd.write('"time_data":{%s\n'%(attrs,))
+        data = '[\n'
+        row_strs = []
+        for row in self._time_data_accum:
+            row_strs.append('[%s, %s]'%(repr(row[0]),repr(row[1])))
+        data = '[' + ',\n  '.join(row_strs) + ']'
+        self._fd.write('             "timestamps_framestamps" : %s}\n'%(data))
+        self._fd.write('            }\n')
+
+    def close(self):
+        if self._ain_started:
+            raise ValueError("AIN saving was not stopped")
+        self._fd.close()
+        self._fd = None
+
+class AnalogDataH5Saver(AnalogSaver):
+    def __init__(self,filename,mode='w'):
+        self.streaming_file = tables.openFile( filename, mode=mode)
+        self.stream_time_data_table = self.streaming_file.createTable(
+            self.streaming_file.root,'time_data',TimeDataDescription,
+            "time data",expectedrows=10000)
+        self._time_data_accum = []
+        self._top = None
+
+    def start_ain_stream(self,
+                         channel_names=None,
+                         Vcc=None):
+        self.stream_ain_table   = self.streaming_file.createTable(
+            self.streaming_file.root,'ain_wordstream',AnalogInputWordstreamDescription,
+            "AIN data",expectedrows=100000)
+        self.stream_ain_table.attrs.channel_names = channel_names
+        self.stream_ain_table.attrs.Vcc = Vcc
+
+    def write_ain_buffers(self,bufs):
+        buf = np.hstack(bufs)
+        recarray = np.rec.array( [buf], dtype=AnalogInputWordstream_dtype)
+        self.stream_ain_table.append( recarray )
+        self.stream_ain_table.flush()
+
+    def get_time_accum(self,top=None):
+        if top is not None:
+            assert self._top is None, "self._top is already set"
+            self._top = top
+        self.stream_time_data_table.attrs.top = top
+        return self._time_data_accum
+
+    def stop_ain_stream_and_save_time_data(self):
+        bigarr = np.vstack(self._time_data_accum)
+        timestamps = bigarr[:,0]
+        framestamps = bigarr[:,1]
+        recarray = np.rec.array( [timestamps,framestamps], dtype=TimeData_dtype)
+        self.stream_time_data_table.append( recarray )
+        self.stream_time_data_table.flush()
+
+    def close(self):
+        self.streaming_file.close()
+        self.streaming_file = None
+
 class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     plugin_name = 'FView external trigger'
     trigger_device = traits.Instance(ttrigger.DeviceModel)
@@ -41,6 +144,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     query_AIN_interval = traits.Range(low=10,high=1000,value=300)
     last_trigger_timestamp = traits.Any(transient=True)
     save_to_disk = traits.Bool(False,transient=True)
+    saver_type = traits.Enum( '.json', '.h5' )
     streaming_filename = traits.File
 
     traits_view = View( Group( ( Item( 'trigger_device', style='custom',
@@ -56,8 +160,10 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
                                  orientation='horizontal'),
                                  Item( 'timestamp_modeler', style='custom',
                                        show_label=False),
-                                 Item(name='save_to_disk',
-                                      ),
+                                 Group(
+                                       Item(name='save_to_disk'),
+                                       Item(name='saver_type',show_label=False),
+                                       orientation="horizontal"),
                                  Item(name='streaming_filename',
                                       style='readonly'),
                                  )),
@@ -137,28 +243,33 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     def _save_to_disk_changed(self):
         self.service_save_data()
         if self.save_to_disk:
+            if self.trigger_device.AIN_running is False:
+                warnings.warn('AIN is not running - file will be empty')
+
             self.timestamp_modeler.block_activity = True
 
-            self.streaming_filename = time.strftime('fview_analog_data_%Y%m%d_%H%M%S.h5')
-            self.streaming_file = tables.openFile( self.streaming_filename, mode='w')
-            self.stream_ain_table   = self.streaming_file.createTable(
-                self.streaming_file.root,'ain_wordstream',AnalogInputWordstreamDescription,
-                "AIN data",expectedrows=100000)
+            ext = self.saver_type
+            fname_base = time.strftime('fview_analog_data_%Y%m%d_%H%M%S')
+            self.streaming_filename = fname_base+ext
+            if self.saver_type=='.json':
+                cls = AnalogDataJsonSaver
+            elif self.saver_type=='.h5':
+                cls = AnalogDataH5Saver
+            self.streaming_file = cls( self.streaming_filename )
+
             names = self.timestamp_modeler.channel_names
             print 'saving analog channels',names
-            self.stream_ain_table.attrs.channel_names = names
+            self.streaming_file.start_ain_stream(channel_names=names,
+                                                 Vcc=self.timestamp_modeler.Vcc)
 
-            self.stream_ain_table.attrs.Vcc = self.timestamp_modeler.Vcc
 
-            self.stream_time_data_table = self.streaming_file.createTable(
-                self.streaming_file.root,'time_data',TimeDataDescription,
-                "time data",expectedrows=10000)
-            self.stream_time_data_table.attrs.top = self.timestamp_modeler.timer3_top
+            self.stream_time_data_table = self.streaming_file.get_time_accum(
+                top=self.timestamp_modeler.timer3_top)
 
             print 'saving to disk...'
         else:
             print 'closing file...'
-            self.stream_ain_table   = None
+            self.streaming_file.stop_ain_stream_and_save_time_data()
             self.stream_time_data_table = None
             self.streaming_file.close()
             self.streaming_file = None
@@ -185,21 +296,13 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
         # analog input data...
         bufs = self._list_of_ain_wordstream_buffers
         self._list_of_ain_wordstream_buffers = []
-        if self.stream_ain_table is not None and len(bufs):
-            buf = np.hstack(bufs)
-            recarray = np.rec.array( [buf], dtype=AnalogInputWordstream_dtype)
-            self.stream_ain_table.append( recarray )
-            self.stream_ain_table.flush()
+        if self.streaming_file is not None and len(bufs):
+            self.streaming_file.write_ain_buffers(bufs)
 
         tsfss = self._list_of_timestamp_data
         self._list_of_timestamp_data = []
         if self.stream_time_data_table is not None and len(tsfss):
-            bigarr = np.vstack(tsfss)
-            timestamps = bigarr[:,0]
-            framestamps = bigarr[:,1]
-            recarray = np.rec.array( [timestamps,framestamps], dtype=TimeData_dtype)
-            self.stream_time_data_table.append( recarray )
-            self.stream_time_data_table.flush()
+            self.stream_time_data_table.extend(tsfss)
 
     def _query_AIN_interval_changed(self):
         self.timer2.Start(self.query_AIN_interval)

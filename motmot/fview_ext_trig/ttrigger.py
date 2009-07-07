@@ -220,6 +220,7 @@ class DeviceModel(traits.HasTraits):
     _ain_state = traits.Instance(DeviceAnalogInState) # atomic updates
     Vcc = traits.Property(depends_on='_ain_state')
 
+    AIN_running = traits.Property(depends_on='_ain_state')
     enabled_channels = traits.Property(depends_on='_ain_state')
     enabled_channel_names = traits.Property(depends_on='_ain_state')
 
@@ -302,6 +303,10 @@ class DeviceModel(traits.HasTraits):
     @traits.cached_property
     def _get_Vcc(self):
         return self._ain_state.Vcc
+
+    @traits.cached_property
+    def _get_AIN_running(self):
+        return self._ain_state.AIN_running
 
     @traits.cached_property
     def _get_enabled_channels(self):

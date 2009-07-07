@@ -21,5 +21,6 @@ setup(name='motmot.fview_ext_trig',
         'trigger_enter_dfu_mode = motmot.fview_ext_trig.ttrigger:enter_dfu_mode',
         'trigger_check_device = motmot.fview_ext_trig.ttrigger:check_device',
         'trigger_set_frequency = motmot.fview_ext_trig.ttrigger:set_frequency',
+        'fview_ext_trig_json2h5 = motmot.fview_ext_trig.json2hfive:main',
         ]},
       )
