@@ -187,7 +187,7 @@ class DeviceModel(traits.HasTraits):
     # Private runtime details
     _libusb_handle = traits.Any(None,transient=True)
     _lock = traits.Any(None,transient=True) # lock access to the handle
-    _have_trigger = traits.Bool(False,transient=True) # real USB device present
+    real_device = traits.Bool(False,transient=True) # real USB device present
 
     ignore_version_mismatch = traits.Bool(False, transient=True)
 
@@ -381,7 +381,7 @@ class DeviceModel(traits.HasTraits):
         The inter-frame counter counts up from 0 to self.timer3_top
         between frame ticks.
         """
-        if not self._have_trigger:
+        if not self.real_device:
             now = time.time()
             if full_output:
                 framecount = now//1
@@ -413,7 +413,7 @@ class DeviceModel(traits.HasTraits):
         return results
 
     def get_analog_input_buffer_rawLE(self):
-        if not self._have_trigger:
+        if not self.real_device:
             outbuf = np.array([],dtype='<u2') # unsigned 2 byte little endian
             return outbuf
         EP_LEN = 256
@@ -549,13 +549,13 @@ class DeviceModel(traits.HasTraits):
         self._send_buf(buf)
 
     def _send_buf(self,buf):
-        if not self._have_trigger:
+        if not self.real_device:
             return
         with self._lock:
             val = usb.bulk_write(self._libusb_handle, 0x06, buf, 9999)
 
     def _read_buf(self):
-        if not self._have_trigger:
+        if not self.real_device:
             return None
         buf = ctypes.create_string_buffer(16)
         timeout = 1000
@@ -567,29 +567,32 @@ class DeviceModel(traits.HasTraits):
         return buf
 
     def _open_device(self):
-        usb.init()
-        if not usb.get_busses():
-            usb.find_busses()
-            usb.find_devices()
+        require_trigger = int(os.environ.get('REQUIRE_TRIGGER','1'))
+        if require_trigger:
 
-        busses = usb.get_busses()
+            usb.init()
+            if not usb.get_busses():
+                usb.find_busses()
+                usb.find_devices()
 
-        found = False
-        for bus in busses:
-            for dev in bus.devices:
-                debug('idVendor: 0x%04x idProduct: 0x%04x'%
-                      (dev.descriptor.idVendor,dev.descriptor.idProduct))
-                if (dev.descriptor.idVendor == 0x1781 and
-                    dev.descriptor.idProduct == 0x0BAF):
-                    found = True
+            busses = usb.get_busses()
+
+            found = False
+            for bus in busses:
+                for dev in bus.devices:
+                    debug('idVendor: 0x%04x idProduct: 0x%04x'%
+                          (dev.descriptor.idVendor,dev.descriptor.idProduct))
+                    if (dev.descriptor.idVendor == 0x1781 and
+                        dev.descriptor.idProduct == 0x0BAF):
+                        found = True
+                        break
+                if found:
                     break
-            if found:
-                break
-        if not found:
-            if int(os.environ.get('REQUIRE_TRIGGER','1')):
+            if not found:
                 raise RuntimeError("Cannot find device. (Perhaps run with "
                                    "environment variable REQUIRE_TRIGGER=0.)")
-            self._have_trigger = False
+        else:
+            self.real_device = False
             return
         with self._lock:
             self._libusb_handle = usb.open(dev)
@@ -621,7 +624,7 @@ class DeviceModel(traits.HasTraits):
             config = dev.config[0]
             usb.set_configuration(self._libusb_handle, config.bConfigurationValue)
             usb.claim_interface(self._libusb_handle, interface_nr)
-        self._have_trigger = True
+        self.real_device = True
 
 class DeviceModelAnyVersion(DeviceModel):
     """Allow opening of device when firmware version does not match expectations
