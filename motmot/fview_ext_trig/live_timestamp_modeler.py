@@ -254,24 +254,25 @@ class LiveTimestampModeler(traits.HasTraits):
         # objects, I believe the operations are atomic and thus this
         # function is OK.
 
-        last_frame_timestamp = self.last_frame.get(id_string,-np.inf)
-        this_interval = frame_timestamp-last_frame_timestamp
+        if frame_timestamp is not None:
+            last_frame_timestamp = self.last_frame.get(id_string,-np.inf)
+            this_interval = frame_timestamp-last_frame_timestamp
 
-        did_frame_offset_change = False
-        if this_interval > self.sync_interval:
-            if self.block_activity:
-                print('changing frame offset is disallowed, but you attempted to do it. ignoring.')
-            else:
-                # re-synchronize camera
+            did_frame_offset_change = False
+            if this_interval > self.sync_interval:
+                if self.block_activity:
+                    print('changing frame offset is disallowed, but you attempted to do it. ignoring.')
+                else:
+                    # re-synchronize camera
 
-                # XXX need to figure out where frame offset of two comes from:
-                self.frame_offsets[id_string] = framenumber-2
-                did_frame_offset_change = True
+                    # XXX need to figure out where frame offset of two comes from:
+                    self.frame_offsets[id_string] = framenumber-2
+                    did_frame_offset_change = True
 
-        self.last_frame[id_string] = frame_timestamp
+            self.last_frame[id_string] = frame_timestamp
 
-        if did_frame_offset_change:
-            self.frame_offset_changed = True # fire any listeners
+            if did_frame_offset_change:
+                self.frame_offset_changed = True # fire any listeners
 
         result = self.gain_offset_residuals
         if result is None:
