@@ -297,6 +297,10 @@ int main(void)
 	/* Initialize USB Subsystem */
 	USB_Init();
 
+        /* turn PD0 to output and set high, (PWM_BNC ver 1.0 hardware board) */
+        DDRD |= (1<<DDD0);
+        PORTD |= (1<<PD0);
+
 	/* Scheduling - routine never returns, so put this last in the main function */
 	Scheduler_Start();
 }

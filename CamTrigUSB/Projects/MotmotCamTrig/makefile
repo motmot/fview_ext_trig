@@ -41,13 +41,13 @@
 
 
 # MCU name
-MCU = at90usb1287
+MCU = at90usb646
 
 
 # Target board (USBKEY, STK525, STK526, RZUSBSTICK, USER or blank for projects not requiring
 # LUFA board drivers). If USER is selected, put custom board drivers in a directory called
 # "Board" inside the application directory.
-BOARD  = USBKEY
+BOARD  = 
 
 
 # Processor frequency.
@@ -68,7 +68,7 @@ BOARD  = USBKEY
 #         F_CPU = 16000000
 #         F_CPU = 18432000
 #         F_CPU = 20000000
-F_CPU = 8000000
+F_CPU = 16000000
 
 
 # Output format. (can be srec, ihex, binary)
