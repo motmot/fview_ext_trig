@@ -160,9 +160,12 @@ USB_Descriptor_String_t PROGMEM ManufacturerString =
  */
 USB_Descriptor_String_t PROGMEM ProductString =
 {
-	Header:                 {Size: USB_STRING_LEN(18), Type: DTYPE_String},
+	Header:                 {Size: USB_STRING_LEN(40), Type: DTYPE_String},
 
-	UnicodeString:          L"Camera Trigger 1.0"
+#define _QUOTEME(x) #x
+#define QUOTEME(x) _QUOTEME(x)
+
+	UnicodeString:          L"Camera Trigger 1.01 (F_CPU = " QUOTEME(F_CPU) ")               " /* pad with trailing spaces in case F_CPU not defined */
 };
 
 /** This function is called by the library when in device mode, and must be overridden (see StdDescriptors.h
