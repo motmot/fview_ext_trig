@@ -1,6 +1,6 @@
 import pylibusb as usb
 import ctypes
-import sys, time,os
+import sys, time, os, re
 from optparse import OptionParser
 import numpy as np
 
@@ -99,7 +99,16 @@ class Device:
 
         assert manufacturer == 'Strawman', 'Wrong manufacturer: %s'%manufacturer
         valid_product = 'Camera Trigger 1.0'
-        if product != valid_product:
+        if product == valid_product:
+            self.FOSC = 8000000.0
+        elif product.startswith('Camera Trigger 1.01'):
+            osc_re = r'Camera Trigger 1.01 \(F_CPU = (.*)\)\w*'
+            match = re.search(osc_re,product)
+            fosc_str = match.groups()[0]
+            if fosc_str.endswith('UL'):
+                fosc_str = fosc_str[:-2]
+            self.FOSC = float(fosc_str)
+        else:
             errmsg = 'Expected product "%s", but you have "%s"'%(
                 valid_product,product)
             if ignore_version_mismatch:
@@ -135,7 +144,6 @@ class Device:
 
         self.OUTPUT_BUFFER = ctypes.create_string_buffer(16)
 
-        self.FOSC = 8000000 # 8 MHz
         trigger_carrier_freq = 0.0 # stopped
 
         self.timer3_TOP = None # unknown

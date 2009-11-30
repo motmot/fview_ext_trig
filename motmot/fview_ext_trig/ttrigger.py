@@ -1,14 +1,11 @@
 from __future__ import with_statement
 import pylibusb as usb
 import ctypes
-import sys, time, os, threading, warnings
+import sys, time, os, threading, warnings, re
 import enthought.traits.api as traits
 from enthought.traits.ui.api import View, Item, Group
 import numpy as np
 from optparse import OptionParser
-
-# The crystal oscillator frequency on board the device
-FOSC = 8000000.0
 
 ENDPOINT_DIR_IN = 0x80
 ANALOG_EPNUM = 0x01
@@ -103,6 +100,7 @@ class DeviceAnalogInState(traits.HasTraits):
     AIN2_name = traits.String("AIN2")
     AIN3_enabled = traits.Bool(False)
     AIN3_name = traits.String("AIN3")
+    trigger_device = traits.Instance('DeviceModel',transient=True)
 
     adc_prescaler = traits.Trait(128.0,{
         128.0:0x07,64.0: 0x06,
@@ -114,7 +112,9 @@ class DeviceAnalogInState(traits.HasTraits):
     downsample_bits = traits.Range(low=0,high=2**5-1,value=0)
     AIN_running = traits.Bool(False)
     sample_rate_total = traits.Property(label='Sample rate (Hz), all channels',
-                                        depends_on=['adc_prescaler','downsample_bits'])
+                                        depends_on=['adc_prescaler',
+                                                    'trigger_device',
+                                                    'downsample_bits'])
     sample_rate_chan = traits.Property(label='each channel',
                                        depends_on=['sample_rate_total',
                                                    'AIN0_enabled','AIN1_enabled',
@@ -157,7 +157,7 @@ class DeviceAnalogInState(traits.HasTraits):
 
     @traits.cached_property
     def _get_sample_rate_total(self):
-        input_frequency = FOSC/self.adc_prescaler
+        input_frequency = self.trigger_device.FOSC/self.adc_prescaler
         if input_frequency < 50*1e3:
             warnings.warn('ADC sample frequency is too slow to get good sampling')
         if input_frequency > 200*1e3:
@@ -188,6 +188,7 @@ class DeviceModel(traits.HasTraits):
     _libusb_handle = traits.Any(None,transient=True)
     _lock = traits.Any(None,transient=True) # lock access to the handle
     real_device = traits.Bool(False,transient=True) # real USB device present
+    FOSC = traits.Float(8000000.0,transient=True)
 
     ignore_version_mismatch = traits.Bool(False, transient=True)
 
@@ -245,7 +246,7 @@ class DeviceModel(traits.HasTraits):
     def __init__(self,*a,**k):
         super(DeviceModel,self).__init__(*a,**k)
         self._t3_state = DeviceTimer3State()
-        self._ain_state = DeviceAnalogInState()
+        self._ain_state = DeviceAnalogInState(trigger_device=self)
 
     def __new__(cls,*args,**kwargs):
         """Set the transient object state
@@ -342,7 +343,7 @@ class DeviceModel(traits.HasTraits):
     def _get_frames_per_second_actual(self):
         if self._t3_state.timer3_CS==0:
             return 0
-        return FOSC/self._t3_state.timer3_CS/self._t3_state.timer3_top
+        return self.FOSC/self._t3_state.timer3_CS/self._t3_state.timer3_top
 
     def set_frames_per_second_approximate(self,value):
         """Set the framerate as close as possible to the desired value"""
@@ -353,9 +354,9 @@ class DeviceModel(traits.HasTraits):
             # For all possible clock select values
             CSs = np.array([1.0,8.0,64.0,256.0,1024.0])
             # find the value of top that to gives the desired framerate
-            best_top = np.clip(np.round(FOSC/CSs/value),0,2**16-1).astype(np.int)
+            best_top = np.clip(np.round(self.FOSC/CSs/value),0,2**16-1).astype(np.int)
             # and find the what the framerate would be at that top value
-            best_rate = FOSC/CSs/best_top
+            best_rate = self.FOSC/CSs/best_top
             # and choose the best one.
             idx = np.argmin(abs(best_rate-value))
             expected_rate = best_rate[idx]
@@ -603,7 +604,16 @@ class DeviceModel(traits.HasTraits):
 
             assert manufacturer == 'Strawman', 'Wrong manufacturer: %s'%manufacturer
             valid_product = 'Camera Trigger 1.0'
-            if product != valid_product:
+            if product == valid_product:
+                self.FOSC = 8000000.0
+            elif product.startswith('Camera Trigger 1.01'):
+                osc_re = r'Camera Trigger 1.01 \(F_CPU = (.*)\)\w*'
+                match = re.search(osc_re,product)
+                fosc_str = match.groups()[0]
+                if fosc_str.endswith('UL'):
+                    fosc_str = fosc_str[:-2]
+                self.FOSC = float(fosc_str)
+            else:
                 errmsg = 'Expected product "%s", but you have "%s"'%(
                     valid_product,product)
                 if self.ignore_version_mismatch:
