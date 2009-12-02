@@ -157,7 +157,11 @@ class DeviceAnalogInState(traits.HasTraits):
 
     @traits.cached_property
     def _get_sample_rate_total(self):
-        input_frequency = self.trigger_device.FOSC/self.adc_prescaler
+        if self.trigger_device is not None:
+            input_frequency = self.trigger_device.FOSC/self.adc_prescaler
+        else:
+            input_frequency = 100*1e3 # fake value
+        # from USBKEY datasheet:
         if input_frequency < 50*1e3:
             warnings.warn('ADC sample frequency is too slow to get good sampling')
         if input_frequency > 200*1e3:
