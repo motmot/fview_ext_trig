@@ -196,22 +196,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
 
         # It not possible, create ourself anew
         if not loaded:
-            try:
-                self.trigger_device = ttrigger.DeviceModel()
-            except Exception,err:
-                formatted_error = traceback.format_exc(err)
-                msg = 'While attempting to open the CamTrig USB device,\n' \
-                      'FView encountered an error. The error is:\n\n' \
-                      '%s\n\n' \
-                      'More details:\n' \
-                      '%s\n\n' \
-                      'FView will now close.'%( err, formatted_error )
-                dlg = wx.MessageDialog(self.frame, msg,
-                                       'FView plugin error',
-                                       wx.OK | wx.ICON_ERROR)
-                dlg.ShowModal()
-                dlg.Destroy()
-                raise
+            self.trigger_device = ttrigger.DeviceModel()
 
         self.timestamp_modeler = LiveTimestampModelerWithAnalogInput(
             viewer=AnalogInputViewer())
