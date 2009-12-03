@@ -177,6 +177,8 @@ class DeviceAnalogInState(traits.HasTraits):
     def _get_sample_rate_chan(self):
         n_chan = sum(map(int,[self.AIN0_enabled,self.AIN1_enabled,
                               self.AIN2_enabled,self.AIN3_enabled]))
+        if n_chan == 0:
+            return 0.0
         rate = self.sample_rate_total/float(n_chan)
         return rate
 
