@@ -624,6 +624,8 @@ class DeviceModel(traits.HasTraits):
                     valid_product,product)
                 if self.ignore_version_mismatch:
                     print 'WARNING:',errmsg
+                    self.FOSC = 8000000.0
+                    print ' assuming FOSC=',self.FOSC
                 else:
                     raise ValueError(errmsg)
 
