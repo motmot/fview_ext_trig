@@ -1,5 +1,5 @@
-Wiring the motmot camera trigger
-================================
+Wiring the motmot camera trigger using an AT90USBKEY
+====================================================
 
 We have been connecting the AT90USBKEY in the following way. We hope
 to provide details on a canoncial enclosure soon.

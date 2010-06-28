@@ -76,7 +76,7 @@ FORMAT = ihex
 
 
 # Target file name (without extension).
-TARGET = camtrig
+TARGET = camtrig-at90usbkey
 
 
 # Object files directory
@@ -86,7 +86,7 @@ OBJDIR = .
 
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(TARGET).c                                          \
+SRC = camtrig.c                                          \
 	  Descriptors.c                                        \
           handler.c	                               \
           RingBuff.c                                           \

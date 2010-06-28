@@ -31,10 +31,13 @@ What
 .. image:: usbkey.jpg
   :alt: Atmel AT90USBKEY
 
-Camtrig is firmware for the $30 AT90USBKEY__ USB development board
-that:
+.. image:: teensy++-2.0.jpg
+  :alt: PJRC Teensy++ 2.0
 
-__ http://atmel.com/dyn/products/tools_card.asp?tool_id=3879
+Camtrig is firmware for the $30 `AT90USBKEY
+<http://atmel.com/dyn/products/tools_card.asp?tool_id=3879>`_ USB and
+$24 `PJRC development board
+<http://www.pjrc.com/store/teensypp.html>`_ that:
 
 1. generates trigger pulses to feed into the external trigger input of
    digital video cameras.  The pulses are generated with a 16-bit
@@ -59,10 +62,12 @@ How
 
 The device is accessed using the Python :mod:`motmot.fview_ext_trig` package.
 
-Camtrig is built with GCC-AVR using the LUFA_ library for the
-AT90USBKEY. To load the firmware onto the device, use
+Camtrig is built with GCC-AVR using the LUFA_ library for the AT90USB
+architecture. To load the firmware onto an AT90USBKEY device, use
 `dfu-programmer`__ or FLIP__ to transfer the hex file camtrig.hex_ to
-the device in Device Firmware Upload (DFU) mode.
+the device in Device Firmware Upload (DFU) mode. To load firmware onto
+a PJRC Teensy++ 2.0 device, use the `Teensy Loader
+<http://www.pjrc.com/teensy/loader.html>`_.
 
 __ http://dfu-programmer.sourceforge.net/
 __ http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3886

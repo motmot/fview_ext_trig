@@ -25,11 +25,15 @@ change something.
 in linux
 """"""""
 
-To build the MotmotCamtrig firmware (``camtrig.hex``)::
+To build the MotmotCamtrig firmware (``camtrig-at90usbkey.hex`` or
+``camtrig-teensypp-2.0.hex``)::
 
   cd Projects
-  rm -f MotmotCamTrig/*.hex MotmotCamTrig/*.o
-  make -C MotmotCamTrig
+  rm -f MotmotCamTrig/*.hex
+  rm -f MotmotCamTrig/*.o
+  make -f makefile.at90usbkey -C MotmotCamTrig
+  rm -f MotmotCamTrig/*.o
+  make -f makefile.teensy++_2.0 -C MotmotCamTrig
 
 in Windows
 """"""""""
@@ -39,6 +43,12 @@ for compilation.
 
 __ http://winavr.sourceforge.net/
 __ http://www.fourwalledcubicle.com/LUFA.php
+
+Loading firmware onto Teensy++ 2.0
+----------------------------------
+
+Please see the `instructions at the PJRC site for the Teensy Loader
+<http://www.pjrc.com/teensy/loader.html>`_.
 
 Loading firmware onto AT90USBKEY
 --------------------------------
