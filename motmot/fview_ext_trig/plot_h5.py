@@ -22,12 +22,32 @@ def doit(fname,options):
     gain,offset,resids = easy_decode.get_gain_offset_resids(
         input=time_data['framestamp'],
         output=time_data['timestamp'])
+    if options.plot_time_data:
+        fig = pylab.figure()
+        ax = fig.add_subplot(111)
+        ax.plot( time_data['framestamp'],
+                 time_data['timestamp'], 'bo',
+                 label='data' )
+        ax.set_xlabel('framestamp')
+        ax.set_ylabel('timestamp')
+        minx = np.min(time_data['framestamp'])
+        maxx = np.max(time_data['framestamp'])
+        ax.plot( [minx,maxx],
+                 [minx*gain+offset, maxx*gain+offset],
+                 'k-',
+                 label='fit')
+        pylab.legend()
     top = h5.root.time_data.attrs.top
 
     wordstream = h5.root.ain_wordstream[:]
     wordstream = wordstream['word'] # extract into normal numpy array
     print 'wordstream.shape',wordstream.shape
 
+    if wordstream.shape == (0,):
+        pylab.show()
+        return
+
+    pylab.figure() # open a new figure
     r=easy_decode.easy_decode(wordstream,gain,offset,top)
     chans = r.dtype.fields.keys()
     chans.sort()
@@ -91,6 +111,9 @@ def main():
     parser = OptionParser(usage)
 
     parser.add_option("--timestamps", action='store_true',
+                      default=False)
+
+    parser.add_option("--plot-time-data", action='store_true',
                       default=False)
 
     (options, args) = parser.parse_args()
