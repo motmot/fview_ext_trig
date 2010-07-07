@@ -254,6 +254,13 @@ class LiveTimestampModeler(traits.HasTraits):
         # objects, I believe the operations are atomic and thus this
         # function is OK.
 
+
+
+        # Don't trust camera drivers with giving a good timestamp. We
+        # only use this to reset our framenumber-to-time data
+        # gathering, anyway.
+        frame_timestamp = time.time()
+
         if frame_timestamp is not None:
             last_frame_timestamp = self.last_frame.get(id_string,-np.inf)
             this_interval = frame_timestamp-last_frame_timestamp
