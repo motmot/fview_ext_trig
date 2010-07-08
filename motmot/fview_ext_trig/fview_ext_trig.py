@@ -326,8 +326,9 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
         class.
 
         """
-        trigger_timestamp = self.timestamp_modeler.register_frame(
-            cam_id,framenumber,timestamp)
+        trigger_timestamp, corrected_framenumber, did_frame_offset_change = \
+            self.timestamp_modeler.register_frame(
+            cam_id,framenumber,timestamp, full_output=True)
         if trigger_timestamp is not None:
 
             now = time.time()
