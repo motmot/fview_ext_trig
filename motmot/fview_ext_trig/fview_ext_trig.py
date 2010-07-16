@@ -163,9 +163,9 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
                                        show_label=False),
                                  Group(
                                        Item(name='save_to_disk'),
-                                       Item(name='filename_prefix'),
                                        Item(name='saver_type',show_label=False),
                                        orientation="horizontal"),
+                                 Item(name='filename_prefix'),
                                  Item(name='streaming_filename',
                                       style='readonly'),
                                  )),
