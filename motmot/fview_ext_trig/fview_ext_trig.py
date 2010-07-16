@@ -147,6 +147,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     filename_prefix = traits.String('fview_analog_data_')
     saver_type = traits.Enum( '.json', '.h5' )
     streaming_filename = traits.File
+    persistent_attr_names = traits.List(['filename_prefix','trigger_device'])
 
     traits_view = View( Group( ( Item( 'trigger_device', style='custom',
                                        show_label=False),
@@ -183,18 +184,26 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
 
         # load from persisted state if possible
 
-        self.trigdev_pkl_fname = motmot.utils.config.rc_fname(
+        self.pkl_fname = motmot.utils.config.rc_fname(
             must_already_exist=False,
-            filename='fview_ext_trig-trigger_device.pkl',
+            filename='fview_ext_trig.pkl',
             dirname='.fview')
         loaded = False
-        if os.path.exists(self.trigdev_pkl_fname):
+        if os.path.exists(self.pkl_fname):
             try:
-                self.trigger_device = pickle.load(open(self.trigdev_pkl_fname))
+                default_values = pickle.load(open(self.pkl_fname))
                 loaded = True
             except Exception,err:
                 warnings.warn(
                     'could not open fview_ext_trig persistance file: %s'%err)
+        if loaded:
+            try:
+                for attr in self.persistent_attr_names:
+                    setattr(self,attr, default_values[attr])
+            except Exception, err:
+                # don't fail because we can't read preferences
+                warnings.warn(traceback.format_exc(err))
+                loaded = False
 
         # It not possible, create ourself anew
         if not loaded:
@@ -351,5 +360,8 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
         return self.last_trigger_timestamp[cam_id]
 
     def quit(self):
-        pickle.dump(self.trigger_device,open(self.trigdev_pkl_fname,mode='w'))
+        savedict = {}
+        for attr in self.persistent_attr_names:
+            savedict[attr] = getattr(self,attr)
+        pickle.dump(savedict,open(self.pkl_fname,mode='w'))
 
