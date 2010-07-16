@@ -144,6 +144,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
     query_AIN_interval = traits.Range(low=10,high=1000,value=300)
     last_trigger_timestamp = traits.Any(transient=True)
     save_to_disk = traits.Bool(False,transient=True)
+    filename_prefix = traits.String('fview_analog_data_')
     saver_type = traits.Enum( '.json', '.h5' )
     streaming_filename = traits.File
 
@@ -162,6 +163,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
                                        show_label=False),
                                  Group(
                                        Item(name='save_to_disk'),
+                                       Item(name='filename_prefix'),
                                        Item(name='saver_type',show_label=False),
                                        orientation="horizontal"),
                                  Item(name='streaming_filename',
@@ -234,7 +236,8 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
             self.timestamp_modeler.block_activity = True
 
             ext = self.saver_type
-            fname_base = time.strftime('fview_analog_data_%Y%m%d_%H%M%S')
+            
+            fname_base = self.filename_prefix + time.strftime('%Y%m%d_%H%M%S')
             self.streaming_filename = fname_base+ext
             if self.saver_type=='.json':
                 cls = AnalogDataJsonSaver
