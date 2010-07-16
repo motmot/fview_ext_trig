@@ -183,14 +183,14 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
 
         # load from persisted state if possible
 
-        self.pkl_fname = motmot.utils.config.rc_fname(
+        self.trigdev_pkl_fname = motmot.utils.config.rc_fname(
             must_already_exist=False,
             filename='fview_ext_trig-trigger_device.pkl',
             dirname='.fview')
         loaded = False
-        if os.path.exists(self.pkl_fname):
+        if os.path.exists(self.trigdev_pkl_fname):
             try:
-                self.trigger_device = pickle.load(open(self.pkl_fname))
+                self.trigger_device = pickle.load(open(self.trigdev_pkl_fname))
                 loaded = True
             except Exception,err:
                 warnings.warn(
@@ -351,5 +351,5 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
         return self.last_trigger_timestamp[cam_id]
 
     def quit(self):
-        pickle.dump(self.trigger_device,open(self.pkl_fname,mode='w'))
+        pickle.dump(self.trigger_device,open(self.trigdev_pkl_fname,mode='w'))
 
