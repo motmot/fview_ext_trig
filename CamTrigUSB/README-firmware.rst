@@ -16,11 +16,11 @@ Building
 --------
 
 **Note**: the .hex file (encoded firmware machine code) is already
-precompiled as `camtrig.hex`_ (using avr-gcc 4.3.2 on Ubuntu
+precompiled as `camtrig-at90usbkey.hex`_ (using avr-gcc 4.3.2 on Ubuntu
 Jaunty). Thus, you don't have to compile this code unless you want to
 change something.
 
-.. _camtrig.hex: http://github.com/motmot/fview_ext_trig/raw/master/CamTrigUSB/Projects/MotmotCamTrig/camtrig.hex
+.. _camtrig-at90usbkey.hex: http://github.com/motmot/fview_ext_trig/raw/master/CamTrigUSB/Projects/MotmotCamTrig/camtrig-at90usbkey.hex
 
 in linux
 """"""""
@@ -60,14 +60,14 @@ The firmware is loaded over the normal USB cable. You must boot your
 AT90USBKEY into DFU mode. After doing so enter these commands::
 
   sudo dfu-programmer at90usb1287 erase
-  sudo dfu-programmer at90usb1287 flash MotmotCamTrig/camtrig.hex
+  sudo dfu-programmer at90usb1287 flash MotmotCamTrig/camtrig-at90usbkey.hex
   sudo dfu-programmer at90usb1287 start
 
 Atmel FLIP -- Windows
 """""""""""""""""""""
 
 Use Atmel's GUI app to load the firmware (file
-``MotmotCamTrig/camtrig.hex``) to the device.
+``MotmotCamTrig/camtrig-at90usbkey.hex``) to the device.
 
 Installation to OS
 ------------------
