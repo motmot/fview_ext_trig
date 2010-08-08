@@ -604,9 +604,8 @@ class DeviceModel(traits.HasTraits):
             return
         with self._lock:
             assert my_dev.getManufacturer() == 'Strawman', 'Wrong manufacturer: %s'%manufacturer
-            valid_product = 'Camera Trigger 1.0'
             product = my_dev.getProduct()
-            if product == valid_product:
+            if product == 'Camera Trigger 1.0':
                 self.FOSC = 8000000.0
             elif product.startswith('Camera Trigger 1.01'):
                 osc_re = r'Camera Trigger 1.01 \(F_CPU = (.*)\)\w*'
@@ -616,12 +615,10 @@ class DeviceModel(traits.HasTraits):
                     fosc_str = fosc_str[:-2]
                 self.FOSC = float(fosc_str)
             else:
-                errmsg = 'Expected product "%s", but you have "%s"'%(
-                    valid_product,product)
+                errmsg = 'Expected "Camera Trigger 1.01", but you have "%s"'%product
                 if self.ignore_version_mismatch:
-                    print 'WARNING:',errmsg
                     self.FOSC = 8000000.0
-                    print ' assuming FOSC=',self.FOSC
+                    warnings.warn(errmsg + '\n' + ' assuming FOSC= ' + self.FOSC )
                 else:
                     raise ValueError(errmsg)
 
