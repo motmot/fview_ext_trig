@@ -1,11 +1,16 @@
 from __future__ import with_statement
-import pylibusb as usb
+import usb1, libusb1
 import ctypes
+import collections
 import sys, time, os, threading, warnings, re
 import enthought.traits.api as traits
 from enthought.traits.ui.api import View, Item, Group
 import numpy as np
 from optparse import OptionParser
+
+# USB device vendor and product id
+VENDOR_ID = 0x1781
+PRODUCT_ID = 0x0BAF
 
 ENDPOINT_DIR_IN = 0x80
 ANALOG_EPNUM = 0x01
@@ -191,6 +196,7 @@ class DeviceModel(traits.HasTraits):
 
     """
     # Private runtime details
+    _libusb_context = traits.Any(None,transient=True)
     _libusb_handle = traits.Any(None,transient=True)
     _lock = traits.Any(None,transient=True) # lock access to the handle
     real_device = traits.Bool(False,transient=True) # real USB device present
@@ -559,16 +565,16 @@ class DeviceModel(traits.HasTraits):
         if not self.real_device:
             return
         with self._lock:
-            val = usb.bulk_write(self._libusb_handle, 0x06, buf, 9999)
+            self._libusb_handle.bulkWrite( 0x06, buf.raw, 9999) # endpoint, data, timeout
 
     def _read_buf(self):
         if not self.real_device:
             return None
-        buf = ctypes.create_string_buffer(16)
         timeout = 1000
+        mylen = 16
         with self._lock:
             try:
-                val = usb.bulk_read(self._libusb_handle, 0x82, buf, timeout)
+                buf = self._libusb_handle.bulkRead( 0x82, mylen, timeout) # endpoint, length, timeout
             except usb.USBNoDataAvailableError:
                 return None
         return buf
@@ -577,39 +583,29 @@ class DeviceModel(traits.HasTraits):
         require_trigger = int(os.environ.get('REQUIRE_TRIGGER','1'))
         if require_trigger:
 
-            usb.init()
-            if not usb.get_busses():
-                usb.find_busses()
-                usb.find_devices()
+            ctx = usb1.LibUSBContext()
+            devices=ctx.getDeviceList()
 
-            busses = usb.get_busses()
-
-            found = False
-            for bus in busses:
-                for dev in bus.devices:
-                    debug('idVendor: 0x%04x idProduct: 0x%04x'%
-                          (dev.descriptor.idVendor,dev.descriptor.idProduct))
-                    if (dev.descriptor.idVendor == 0x1781 and
-                        dev.descriptor.idProduct == 0x0BAF):
-                        found = True
-                        break
-                if found:
-                    break
-            if not found:
+            # make dictionary with all devices
+            vids_pids = collections.defaultdict(dict)
+            for dev in devices:
+                vids_pids[dev.getVendorID()].update( {dev.getProductID():dev} )
+            
+            # get our device
+            try:
+                my_dev = vids_pids[VENDOR_ID][PRODUCT_ID]
+            except KeyError, err:
                 raise RuntimeError("Cannot find device. (Perhaps run with "
                                    "environment variable REQUIRE_TRIGGER=0.)")
+
+            self._libusb_context = ctx
         else:
             self.real_device = False
             return
         with self._lock:
-            self._libusb_handle = usb.open(dev)
-
-            manufacturer = usb.get_string_simple(self._libusb_handle,dev.descriptor.iManufacturer)
-            product = usb.get_string_simple(self._libusb_handle,dev.descriptor.iProduct)
-            serial = usb.get_string_simple(self._libusb_handle,dev.descriptor.iSerialNumber)
-
-            assert manufacturer == 'Strawman', 'Wrong manufacturer: %s'%manufacturer
+            assert my_dev.getManufacturer() == 'Strawman', 'Wrong manufacturer: %s'%manufacturer
             valid_product = 'Camera Trigger 1.0'
+            product = my_dev.getProduct()
             if product == valid_product:
                 self.FOSC = 8000000.0
             elif product.startswith('Camera Trigger 1.01'):
@@ -629,19 +625,18 @@ class DeviceModel(traits.HasTraits):
                 else:
                     raise ValueError(errmsg)
 
+            self._libusb_handle = my_dev.open()
+
             interface_nr = 0
-            if hasattr(usb,'get_driver_np'):
-                # non-portable libusb extension
-                name = usb.get_driver_np(self._libusb_handle,interface_nr)
-                if name != '':
-                    usb.detach_kernel_driver_np(self._libusb_handle,interface_nr)
+            try:
+                self._libusb_handle.detachKernelDriver(interface_nr)
+            except libusb1.USBError, err:
+                if libusb1.libusb_error(err.value) != 'LIBUSB_ERROR_NOT_FOUND':
+                    raise
+        
+            if my_dev.getNumConfigurations() > 1:
+                debug("WARNING: more than one configuration")
 
-            if dev.descriptor.bNumConfigurations > 1:
-                debug("WARNING: more than one configuration, choosing first")
-
-            config = dev.config[0]
-            usb.set_configuration(self._libusb_handle, config.bConfigurationValue)
-            usb.claim_interface(self._libusb_handle, interface_nr)
         self.real_device = True
 
 class DeviceModelAnyVersion(DeviceModel):
