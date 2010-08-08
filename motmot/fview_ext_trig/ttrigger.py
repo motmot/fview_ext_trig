@@ -118,7 +118,6 @@ class DeviceAnalogInState(traits.HasTraits):
     AIN_running = traits.Bool(False)
     sample_rate_total = traits.Property(label='Sample rate (Hz), all channels',
                                         depends_on=['adc_prescaler',
-                                                    'trigger_device',
                                                     'downsample_bits'])
     sample_rate_chan = traits.Property(label='each channel',
                                        depends_on=['sample_rate_total',
@@ -160,6 +159,12 @@ class DeviceAnalogInState(traits.HasTraits):
                                    orientation='horizontal'),
                              ))
 
+    def _trigger_device_changed(self):
+        self.trigger_device.on_trait_change(self._fosc_changed,'FOSC')
+
+    def _fosc_changed(self):
+        self._get_sample_rate_total()
+
     @traits.cached_property
     def _get_sample_rate_total(self):
         if self.trigger_device is not None:
@@ -200,7 +205,7 @@ class DeviceModel(traits.HasTraits):
     _libusb_handle = traits.Any(None,transient=True)
     _lock = traits.Any(None,transient=True) # lock access to the handle
     real_device = traits.Bool(False,transient=True) # real USB device present
-    FOSC = traits.Float(8000000.0,transient=True)
+    FOSC = traits.Float(None,transient=True)
     _ain_is_isochronous = traits.Bool(False,transient=True)
 
     ignore_version_mismatch = traits.Bool(False, transient=True)
@@ -387,15 +392,35 @@ class DeviceModel(traits.HasTraits):
             new_t3_state.ocr3a = ocr3a
         self._t3_state = new_t3_state # atomic update
 
-    def get_framestamp(self,full_output=False):
+    def get_framestamp(self,full_output=False,use_FOSC=False):
         """Get the framestamp and the value of PORTC
 
         The framestamp includes fraction of IFI until next frame.
 
         The inter-frame counter counts up from 0 to self.timer3_top
         between frame ticks.
+
+        The optional use_FOSC parameter is a hack.
         """
         if not self.real_device:
+            if use_FOSC:
+
+                # This block is a hack. The hack is that there is
+                # a real_device, but we have it set to False until
+                # we start up properly. Specifically, setting
+                # self.FOSC.
+
+                buf = ctypes.create_string_buffer(1)
+                buf[0] = chr(CAMTRIG_GET_FRAMESTAMP_NOW)
+                self.real_device = True
+                try:
+                    self._send_buf(buf)
+                    data = self._read_buf()
+                finally:
+                    self.real_device = False
+                FOSC_key = ord(data[10])
+                self.FOSC = FOSC_key * 1.0e5
+
             now = time.time()
             if full_output:
                 framecount = now//1
@@ -420,6 +445,11 @@ class DeviceModel(traits.HasTraits):
                   'large fractional value in framestamp. resetting')
             frac=1
         framestamp = framecount+frac
+
+        if use_FOSC:
+            FOSC_key = ord(data[10])
+            self.FOSC = FOSC_key * 1.0e5
+
         if full_output:
             results = framestamp, framecount, tcnt3
         else:
@@ -443,6 +473,7 @@ class DeviceModel(traits.HasTraits):
                     n_bytes = usb.bulk_read(self._libusb_handle, (ENDPOINT_DIR_IN|ANALOG_EPNUM), INPUT_BUFFER, timeout)
             except usb.USBNoDataAvailableError:
                 break
+
             n_elements = n_bytes//2
             buf = np.fromstring(INPUT_BUFFER.raw,dtype='<u2') # unsigned 2 byte little endian
             buf = buf[:n_elements]
@@ -576,8 +607,9 @@ class DeviceModel(traits.HasTraits):
         with self._lock:
             try:
                 buf = self._libusb_handle.bulkRead( 0x82, mylen, timeout) # endpoint, length, timeout
-            except usb.USBNoDataAvailableError:
-                return None
+            except libusb1.USBError, err:
+                if libusb1.libusb_error(err.value) == 'LIBUSB_ERROR_TIMEOUT':
+                    return None
         return buf
 
     def _open_device(self):
@@ -602,6 +634,7 @@ class DeviceModel(traits.HasTraits):
             self._libusb_context = ctx
         else:
             self.real_device = False
+            self.FOSC = 8000000.0
             return
         with self._lock:
             assert my_dev.getManufacturer() == 'Strawman', 'Wrong manufacturer: %s'%manufacturer
@@ -617,14 +650,8 @@ class DeviceModel(traits.HasTraits):
                     fosc_str = fosc_str[:-2]
                 self.FOSC = float(fosc_str)
                 self._ain_is_isochronous = False
-            elif product.startswith('Camera Trigger 2.0'):
-                osc_re = r'Camera Trigger 2.0 \(F_CPU = (.*)\)\w*'
-                match = re.search(osc_re,product)
-                fosc_str = match.groups()[0]
-                if fosc_str.endswith('UL'):
-                    fosc_str = fosc_str[:-2]
-                self.FOSC = float(fosc_str)
-                self._ain_is_isochronous = False
+            elif product == 'Camera Trigger 2.0':
+                self._ain_is_isochronous = True
             else:
                 errmsg = 'Expected "Camera Trigger 2.0", but you have "%s"'%product
                 if self.ignore_version_mismatch:
@@ -641,7 +668,13 @@ class DeviceModel(traits.HasTraits):
             except libusb1.USBError, err:
                 if libusb1.libusb_error(err.value) != 'LIBUSB_ERROR_NOT_FOUND':
                     raise
-        
+
+        # Release usb device lock for this to avoid deadlock.
+        if self.FOSC is None:
+            # read FOSC from device
+            framestamp = self.get_framestamp(use_FOSC=True)
+
+        with self._lock:
             if my_dev.getNumConfigurations() > 1:
                 debug("WARNING: more than one configuration")
 

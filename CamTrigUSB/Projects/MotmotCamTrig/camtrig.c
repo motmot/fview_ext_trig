@@ -597,6 +597,16 @@ TASK(USB_ControlDevice_Task)
       Endpoint_Write_Byte((uint8_t)(tcnt3_copy & 0xFF));
       Endpoint_Write_Byte((uint8_t)((tcnt3_copy >> 8) & 0xFF));
 
+#if (F_CPU == 8000000)
+      Endpoint_Write_Byte((uint8_t)(80));
+#else
+  #if (F_CPU == 16000000)
+      Endpoint_Write_Byte((uint8_t)(160));
+  #else
+      Endpoint_Write_Byte((uint8_t)(0));
+  #endif
+#endif
+
       Endpoint_ClearCurrentBank(); // Send data over the USB
     }
 
