@@ -201,6 +201,7 @@ class DeviceModel(traits.HasTraits):
     _lock = traits.Any(None,transient=True) # lock access to the handle
     real_device = traits.Bool(False,transient=True) # real USB device present
     FOSC = traits.Float(8000000.0,transient=True)
+    _ain_is_isochronous = traits.Bool(False,transient=True)
 
     ignore_version_mismatch = traits.Bool(False, transient=True)
 
@@ -607,6 +608,7 @@ class DeviceModel(traits.HasTraits):
             product = my_dev.getProduct()
             if product == 'Camera Trigger 1.0':
                 self.FOSC = 8000000.0
+                self._ain_is_isochronous = False
             elif product.startswith('Camera Trigger 1.01'):
                 osc_re = r'Camera Trigger 1.01 \(F_CPU = (.*)\)\w*'
                 match = re.search(osc_re,product)
@@ -614,8 +616,17 @@ class DeviceModel(traits.HasTraits):
                 if fosc_str.endswith('UL'):
                     fosc_str = fosc_str[:-2]
                 self.FOSC = float(fosc_str)
+                self._ain_is_isochronous = False
+            elif product.startswith('Camera Trigger 2.0'):
+                osc_re = r'Camera Trigger 2.0 \(F_CPU = (.*)\)\w*'
+                match = re.search(osc_re,product)
+                fosc_str = match.groups()[0]
+                if fosc_str.endswith('UL'):
+                    fosc_str = fosc_str[:-2]
+                self.FOSC = float(fosc_str)
+                self._ain_is_isochronous = False
             else:
-                errmsg = 'Expected "Camera Trigger 1.01", but you have "%s"'%product
+                errmsg = 'Expected "Camera Trigger 2.0", but you have "%s"'%product
                 if self.ignore_version_mismatch:
                     self.FOSC = 8000000.0
                     warnings.warn(errmsg + '\n' + ' assuming FOSC= ' + self.FOSC )

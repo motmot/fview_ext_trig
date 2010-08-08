@@ -165,7 +165,7 @@ USB_Descriptor_String_t PROGMEM ProductString =
 #define _QUOTEME(x) #x
 #define QUOTEME(x) _QUOTEME(x)
 
-	UnicodeString:          L"Camera Trigger 1.01 (F_CPU = " QUOTEME(F_CPU) ")               " /* pad with trailing spaces in case F_CPU not defined */
+	UnicodeString:          L"Camera Trigger 2.0 (F_CPU = " QUOTEME(F_CPU) ")                " /* pad with trailing spaces in case F_CPU not defined */
 };
 
 /** This function is called by the library when in device mode, and must be overridden (see StdDescriptors.h
