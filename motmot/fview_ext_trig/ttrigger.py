@@ -13,6 +13,7 @@ VENDOR_ID = 0x1781
 PRODUCT_ID = 0x0BAF
 
 ENDPOINT_DIR_IN = 0x80
+ANALOG_IN_EPNUM = 0x81
 ANALOG_EPNUM = 0x01
 
 # keep in sync with defines in camtrig.c
