@@ -313,9 +313,9 @@ EVENT_HANDLER(USB_ConfigurationChanged)
                              ENDPOINT_BANK_SINGLE);
 
   /* Setup analog sample stream endpoint */
-  Endpoint_ConfigureEndpoint(ANALOG_EPNUM, EP_TYPE_BULK,
+  Endpoint_ConfigureEndpoint(ANALOG_EPNUM, EP_TYPE_ISOCHRONOUS,
                              ENDPOINT_DIR_IN, ANALOG_EPSIZE,
-                             ENDPOINT_BANK_SINGLE);
+                             ENDPOINT_BANK_DOUBLE);
 
 }
 
@@ -616,27 +616,22 @@ TASK(USB_ControlDevice_Task)
 TASK(USB_AnalogSample_Task) {
 
   if (USB_IsConnected) {
-		/* Select the Serial Tx Endpoint */
-		Endpoint_SelectEndpoint(ANALOG_EPNUM);
+    // Select the analog Tx Endpoint
+    Endpoint_SelectEndpoint(ANALOG_EPNUM);
 
-                if (Endpoint_ReadWriteAllowed())
-                  {
-                    /* Check if the Tx buffer contains anything to be sent to the host */
-                    if (Tx_Buffer.Elements)
-                      {
+    if (Endpoint_ReadWriteAllowed()) {
+      // Write the transmission buffer contents to the received data endpoint
+      while (Tx_Buffer.Elements) {
+	uint16_t tmp = Buffer_GetElement(&Tx_Buffer);
+	Endpoint_Write_Word_LE(tmp);
 
-			/* Write the transmission buffer contents to the received data endpoint */
-			while (Tx_Buffer.Elements && ((Endpoint_BytesInEndpoint()+1) < ANALOG_EPSIZE)) {
-			  uint16_t tmp = Buffer_GetElement(&Tx_Buffer);
-			  Endpoint_Write_Word_LE(tmp);
-			  //Endpoint_Write_Word_LE(Buffer_GetElement(&Tx_Buffer));
-                        }
-
-			/* Send the data */
-			Endpoint_ClearCurrentBank();
-
-                      }
-                  }
+	// Check to see if the bank is now full
+	if (!(Endpoint_ReadWriteAllowed())) {
+	  // Send the full packet to the host
+	  Endpoint_ClearCurrentBank();
+	}
+      }
+    }
   }
 }
 
