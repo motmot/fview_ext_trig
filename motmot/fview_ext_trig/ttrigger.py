@@ -16,6 +16,8 @@ ENDPOINT_DIR_IN = 0x80
 ANALOG_IN_EPNUM = 0x81
 ANALOG_EPNUM = 0x01
 
+NUM_ISO_PACKETS = 10
+
 # keep in sync with defines in camtrig.c
 CAMTRIG_ENTER_DFU = 0
 CAMTRIG_NEW_TIMER3_DATA = 1
@@ -277,12 +279,44 @@ class DeviceModel(traits.HasTraits):
         self = super(DeviceModel, cls).__new__(cls,*args,**kwargs)
         self._lock = threading.Lock()
         self._open_device()
+        self._init_ain_iso_streaming()
         # force the USBKEY's state to our idea of its state
         self.__led_state_changed()
         self.__t3_state_changed()
         self.__ain_state_changed()
         self.reset_AIN_overflow = True # reset ain overflow
         return self
+
+    def _init_ain_iso_streaming(self):
+        device = libusb1.libusb_get_device( self._libusb_handle.handle )
+        max_packet_size = \
+                        libusb1.libusb_get_max_iso_packet_size(device,
+                                                               ANALOG_IN_EPNUM)
+        print 'max_packet_size = ',max_packet_size
+        callback = libusb1.libusb_transfer_cb_fn_p(
+            self._analog_input_data_ready_callback)
+
+        # Fill the AIN USB transfer
+        transfer_p = libusb1.libusb_alloc_transfer(NUM_ISO_PACKETS)
+        transfer = transfer_p.contents
+        transfer.type =  libusb1.LIBUSB_TRANSFER_TYPE_ISOCHRONOUS
+        transfer.endpoint = ANALOG_IN_EPNUM
+        transfer.callback = callback
+        transfer.num_iso_packets = NUM_ISO_PACKETS
+        transfer.length = NUM_ISO_PACKETS*max_packet_size
+        print "setting packet lengths"
+        libusb1fix.libusb_set_iso_packet_lengths( transfer_p,
+                                                  max_packet_size )
+        print "done setting packet lengths"
+        self._ain_usb_transfer_p = transfer_p
+
+        libusb1fix.libusb_submit_transfer(self._ain_usb_transfer_p)
+        print "done submitting transfer"
+
+    def _analog_input_data_ready_callback(self,transfer):
+        print 'callback called!'
+        # resubmit the same transfer
+        libusb1.libusb_submit_transfer(self._ain_usb_transfer_p)
 
     def _set_led_mask(self,led_mask,value):
         if value:
@@ -461,12 +495,19 @@ class DeviceModel(traits.HasTraits):
         if not self.real_device:
             outbuf = np.array([],dtype='<u2') # unsigned 2 byte little endian
             return outbuf
+        print 'pumping for data'
         EP_LEN = 256
         INPUT_BUFFER = ctypes.create_string_buffer(EP_LEN)
 
         bufs = []
         got_bytes = False
-        timeout = 50 # msec
+
+        print 'handling events...'
+        timeout = libusb1.timeval(0, 50000) # 50 msec timeout
+        self._libusb_context.handleEventsTimeout( tv=timeout )
+        print 'done handling events...'
+
+        # collect data we saved from USB subsystem
         while 1:
             # keep pumping until no more data
             try:
