@@ -1,5 +1,6 @@
 from __future__ import with_statement
 import usb1, libusb1
+import iso_usb
 import ctypes
 import collections
 import sys, time, os, threading, warnings, re
@@ -7,6 +8,7 @@ import enthought.traits.api as traits
 from enthought.traits.ui.api import View, Item, Group
 import numpy as np
 from optparse import OptionParser
+import Queue
 
 # USB device vendor and product id
 VENDOR_ID = 0x1781
@@ -288,33 +290,46 @@ class DeviceModel(traits.HasTraits):
         return self
 
     def _init_ain_iso_streaming(self):
+        self._ain_incoming_bytestream = Queue.Queue()
         device = libusb1.libusb_get_device( self._libusb_handle.handle )
         max_packet_size = \
                         libusb1.libusb_get_max_iso_packet_size(device,
                                                                ANALOG_IN_EPNUM)
-        print 'max_packet_size = ',max_packet_size
+        #print 'max_packet_size = ',max_packet_size
         callback = libusb1.libusb_transfer_cb_fn_p(
             self._analog_input_data_ready_callback)
 
         # Fill the AIN USB transfer
         transfer_p = libusb1.libusb_alloc_transfer(NUM_ISO_PACKETS)
+        #transfer_p = libusb1.libusb_alloc_transfer(0)
         transfer = transfer_p.contents
+        transfer.dev_handle = self._libusb_handle.handle
         transfer.type =  libusb1.LIBUSB_TRANSFER_TYPE_ISOCHRONOUS
         transfer.endpoint = ANALOG_IN_EPNUM
         transfer.callback = callback
         transfer.num_iso_packets = NUM_ISO_PACKETS
         transfer.length = NUM_ISO_PACKETS*max_packet_size
-        print "setting packet lengths"
-        libusb1fix.libusb_set_iso_packet_lengths( transfer_p,
-                                                  max_packet_size )
-        print "done setting packet lengths"
+        #print "length should be",transfer.length
+
+        #iso_usb.print_transfer_info( transfer_p )
+        #print "*** setting packet lengths"
+        iso_usb.libusb_set_iso_packet_lengths( transfer_p,
+                                               max_packet_size )
+        #print "done setting packet lengths"
+        #iso_usb.print_transfer_info( transfer_p )
+
         self._ain_usb_transfer_p = transfer_p
 
-        libusb1fix.libusb_submit_transfer(self._ain_usb_transfer_p)
-        print "done submitting transfer"
+        libusb1.libusb_submit_transfer(self._ain_usb_transfer_p)
+        #print "done submitting transfer"
 
     def _analog_input_data_ready_callback(self,transfer):
         print 'callback called!'
+        # get the data...
+
+        all_data = iso_usb.get_all_iso_data( transfer )
+        self._ain_incoming_bytestream.put( all_data )
+
         # resubmit the same transfer
         libusb1.libusb_submit_transfer(self._ain_usb_transfer_p)
 
@@ -500,28 +515,35 @@ class DeviceModel(traits.HasTraits):
         INPUT_BUFFER = ctypes.create_string_buffer(EP_LEN)
 
         bufs = []
-        got_bytes = False
 
         print 'handling events...'
         timeout = libusb1.timeval(0, 50000) # 50 msec timeout
         self._libusb_context.handleEventsTimeout( tv=timeout )
         print 'done handling events...'
 
-        # collect data we saved from USB subsystem
         while 1:
-            # keep pumping until no more data
             try:
-                with self._lock:
-                    n_bytes = usb.bulk_read(self._libusb_handle, (ENDPOINT_DIR_IN|ANALOG_EPNUM), INPUT_BUFFER, timeout)
-            except usb.USBNoDataAvailableError:
+                buf = self._ain_incoming_bytestream.get_nowait()
+                print 'in python got string of len',len(buf)
+                bufs.append(buf)
+            except Queue.Empty:
                 break
 
-            n_elements = n_bytes//2
-            buf = np.fromstring(INPUT_BUFFER.raw,dtype='<u2') # unsigned 2 byte little endian
-            buf = buf[:n_elements]
-            bufs.append(buf)
-            if n_bytes < EP_LEN:
-                break # don't bother waiting for data to dribble in
+        ## # collect data we saved from USB subsystem
+        ## while 1:
+        ##     # keep pumping until no more data
+        ##     try:
+        ##         with self._lock:
+        ##             n_bytes = usb.bulk_read(self._libusb_handle, (ENDPOINT_DIR_IN|ANALOG_EPNUM), INPUT_BUFFER, timeout)
+        ##     except usb.USBNoDataAvailableError:
+        ##         break
+
+        ##     n_elements = n_bytes//2
+        ##     buf = np.fromstring(INPUT_BUFFER.raw,dtype='<u2') # unsigned 2 byte little endian
+        ##     buf = buf[:n_elements]
+        ##     bufs.append(buf)
+        ##     if n_bytes < EP_LEN:
+        ##         break # don't bother waiting for data to dribble in
         if len(bufs):
             outbuf = np.hstack(bufs)
         else:
