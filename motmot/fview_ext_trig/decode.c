@@ -1,5 +1,6 @@
 #include "decode.h"
 #include <string.h>
+#include <stdio.h>
 
 #define FRAMECOUNT_COMING_MARKER 0x04
 #define OVERFLOW_MARKER 0x08
@@ -11,11 +12,15 @@ decode_err_t decode_bytestream( uint16_t *buf, uint16_t len, decode_return_t *re
   int64_t* framecount_ptr;
   memset((void*)result, 0, sizeof(decode_return_t));
 
+  printf("                      0x%0hx :    0x%0hx     0x%0hx\n",buf0, buf0>>6, buf0&0x3F);
+
   if (buf0 & OVERFLOW_MARKER) {
     result->did_overflow=1;
+    printf("overflow!\n");
   }
 
   if (buf0 & FRAMECOUNT_COMING_MARKER) {
+    printf("framecount coming!\n");
     /* bytes 1:6 have framecount+tcnt, current byte is a sample */
     if (len < 6) {
       return DECODE_NO_ERROR; /* wait for 6 or more values */
@@ -32,6 +37,9 @@ decode_err_t decode_bytestream( uint16_t *buf, uint16_t len, decode_return_t *re
   }
 
   result->channel = buf0 & 0x03; /* channel mask */
+  if (result->channel != 0) {
+    printf("channel %d\n",result->channel);
+  }
   result->prev_sample_lsbs = ((buf0>>4)&(0x03)); /* previous sample LSBs mask */
   result->sample = buf0 >> 6;    /* make left-aligned value right aligned */
   N++;

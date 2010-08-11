@@ -135,7 +135,7 @@ void PWM_Init() {
 
 #define FRAMECOUNT_COMING_MARKER 0x04
 #define OVERFLOW_MARKER 0x08
-volatile uint8_t overflowed = 0;
+//volatile uint8_t overflowed = 0;
 uint8_t downsample_countdown_max=0;
 volatile uint32_t framecount_A=0;
 
@@ -151,9 +151,9 @@ ISR(ADC_vect, ISR_BLOCK)
 
   // writes globals: overflowed, Tx_Buffer
 
-  static uint16_t check_previous_mask=0;
+  //  static uint16_t check_previous_mask=0;
   uint16_t analog_value;
-  uint8_t input_channel;
+  //  uint8_t input_channel;
 
   static uint16_t timestamp_inc=0;
 
@@ -166,6 +166,7 @@ ISR(ADC_vect, ISR_BLOCK)
     countdown=downsample_countdown_max;
 #endif
 
+#define FAKEADC
 #ifndef FAKEADC
     analog_value = ADC_GetResult();
 #else
@@ -175,16 +176,18 @@ ISR(ADC_vect, ISR_BLOCK)
     if (fakeadc>=(1<<10)) {
       fakeadc=0;
     }
+    analog_value &= 0xFFC0;
+
 #endif
   uint16_t tcnt3_copy = TCNT3; // grab early so it corresponds with time of sample
-  input_channel = ADC_GetChannel() & 0x03; // only low 2 bits... we're only using first 4 channels
+  //  input_channel = ADC_GetChannel() & 0x03; // only low 2 bits... we're only using first 4 channels
 
   //pack input channel into LSBs
-  analog_value |= check_previous_mask;
-  analog_value |= overflowed;        // set marker if necessary
-  analog_value |= input_channel;     // low 2 bits set to input_channel
+  //  analog_value |= check_previous_mask;                                  [bit 5,4]
+  //  analog_value |= overflowed;        // set marker if necessary         [bit 3]
+  //  analog_value |= input_channel;     // low 2 bits set to input_channel [bit 1,0]
 
-  check_previous_mask = ((analog_value>>2) & 0x30); // insert saved most LSBs, which are least likely to be correlated
+  //  check_previous_mask = ((analog_value>>2) & 0x30); // insert saved most LSBs, which are least likely to be correlated
 
   ADC_CHAN_IDX++;
   if ((ADC_CHAN_IDX) >= ADC_N_CHANS) {
@@ -192,35 +195,11 @@ ISR(ADC_vect, ISR_BLOCK)
   }
   ADC_SetChannel( ADC_REFERENCE_AVCC | ADC_LEFT_ADJUSTED | ADC_CHANS[ADC_CHAN_IDX] );
 
-  uint8_t send_framecount = 0;
-  if (timestamp_inc>0) {
-    timestamp_inc--;
-  } else {
-    timestamp_inc=250;
-    send_framecount = 1;
-    analog_value |= FRAMECOUNT_COMING_MARKER; // set marker in data stream
-  }
-
   /* Analog sample received, store it into the buffer */
   if (!Buffer_StoreElement(&Tx_Buffer, analog_value)) { // Get left 10 bits plus markers
     // overflowed ring buffer
-    overflowed = OVERFLOW_MARKER;
+    //    overflowed = OVERFLOW_MARKER;
   }
-
-#define SEND_FRAMECOUNT
-#ifdef SEND_FRAMECOUNT
-  if (send_framecount) {
-    // we are in an interrupt, so we don't need to worry about being interrupted
-    Buffer_StoreElement(&Tx_Buffer, (uint16_t)(framecount_A & 0xFFFF));
-    Buffer_StoreElement(&Tx_Buffer, (uint16_t)((framecount_A >> 16) & 0xFFFF));
-    Buffer_StoreElement(&Tx_Buffer, (uint16_t)(epoch & 0xFFFF));
-    Buffer_StoreElement(&Tx_Buffer, (uint16_t)((epoch >> 16) & 0xFFFF));
-    if (!Buffer_StoreElement(&Tx_Buffer, tcnt3_copy)) {
-      // overflowed ring buffer
-      overflowed = OVERFLOW_MARKER;
-    }
-  }
-#endif
 
 #ifdef DOWNSAMPLE
   }
@@ -346,7 +325,7 @@ void switchoff_trig3(void) {
 
 static inline void reset_ain(void) {
   cli();
-  overflowed=0;
+  //  overflowed=0;
   Buffer_Initialize(&Tx_Buffer);
   sei();
 }

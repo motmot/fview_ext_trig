@@ -409,7 +409,7 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
         any_overflow = False
         #cum_framestamps = []
         while len(data_raw):
-            result = cDecode.process( data_raw )
+            result = cDecode.process( data_raw, check_LSB_errors=0 )
             (N,samples,channels,did_overflow,framestamp)=result
             if N==0:
                 # no data was able to be processed

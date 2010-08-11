@@ -304,33 +304,37 @@ class DeviceModel(traits.HasTraits):
             self._analog_input_data_ready_callback)
 
 
-        self._ain_incoming_buffer = ctypes.create_string_buffer(
-            NUM_ISO_PACKETS*max_packet_size )
+        self._ain_incoming_buffer = []
+        self._ain_usb_transfer_p = []
 
-        # Fill the AIN USB transfer
-        transfer_p = libusb1.libusb_alloc_transfer(NUM_ISO_PACKETS)
-        #transfer_p = libusb1.libusb_alloc_transfer(0)
-        transfer = transfer_p.contents
-        transfer.dev_handle = self._libusb_handle.handle
-        transfer.type =  libusb1.LIBUSB_TRANSFER_TYPE_ISOCHRONOUS
-        transfer.endpoint = ANALOG_IN_EPNUM
-        transfer.callback = callback
-        transfer.buffer = ctypes.cast(self._ain_incoming_buffer,ctypes.c_void_p)
-        transfer.num_iso_packets = NUM_ISO_PACKETS
-        transfer.length = NUM_ISO_PACKETS*max_packet_size
-        #print "length should be",transfer.length
+        for i in range(2):
+            ctypes_buf = ctypes.create_string_buffer(
+                NUM_ISO_PACKETS*max_packet_size )
 
-        #iso_usb.print_transfer_info( transfer_p )
-        #print "*** setting packet lengths"
-        iso_usb.libusb_set_iso_packet_lengths( transfer_p,
-                                               max_packet_size )
-        #print "done setting packet lengths"
-        #iso_usb.print_transfer_info( transfer_p )
+            # Fill the AIN USB transfer
+            transfer_p = libusb1.libusb_alloc_transfer(NUM_ISO_PACKETS)
+            #transfer_p = libusb1.libusb_alloc_transfer(0)
+            transfer = transfer_p.contents
+            transfer.dev_handle = self._libusb_handle.handle
+            transfer.type =  libusb1.LIBUSB_TRANSFER_TYPE_ISOCHRONOUS
+            transfer.endpoint = ANALOG_IN_EPNUM
+            transfer.callback = callback
+            transfer.buffer = ctypes.cast(ctypes_buf, ctypes.c_void_p)
+            transfer.num_iso_packets = NUM_ISO_PACKETS
+            transfer.length = NUM_ISO_PACKETS*max_packet_size
+            #print "length should be",transfer.length
 
-        self._ain_usb_transfer_p = transfer_p
+            #iso_usb.print_transfer_info( transfer_p )
+            #print "*** setting packet lengths"
+            iso_usb.libusb_set_iso_packet_lengths( transfer_p,
+                                                   max_packet_size )
+            #print "done setting packet lengths"
+            #iso_usb.print_transfer_info( transfer_p )
 
-        libusb1.libusb_submit_transfer(self._ain_usb_transfer_p)
-        #print "done submitting transfer"
+            self._ain_usb_transfer_p.append( transfer_p )
+            self._ain_incoming_buffer.append(ctypes_buf)
+
+            libusb1.libusb_submit_transfer(transfer_p)
 
     def _analog_input_data_ready_callback(self,transfer):
         #print 'callback called!'
@@ -343,7 +347,7 @@ class DeviceModel(traits.HasTraits):
             self._ain_incoming_wordstream.put( buf )
 
         # resubmit the same transfer
-        libusb1.libusb_submit_transfer(self._ain_usb_transfer_p)
+        libusb1.libusb_submit_transfer(transfer)
 
     def _set_led_mask(self,led_mask,value):
         if value:
