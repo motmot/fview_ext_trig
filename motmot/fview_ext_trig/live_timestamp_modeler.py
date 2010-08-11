@@ -402,7 +402,7 @@ class LiveTimestampModelerWithAnalogInput(LiveTimestampModeler):
     def update_analog_input(self):
         """call this function frequently to avoid overruns"""
         new_data_raw = self._trigger_device.get_analog_input_buffer_rawLE()
-        data_raw = np.hstack((new_data_raw,self.old_data_raw))
+        data_raw = np.hstack((self.old_data_raw,new_data_raw))
         self.ain_data_raw = new_data_raw
         newdata_all = []
         chan_all = []
