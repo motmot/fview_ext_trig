@@ -18,7 +18,7 @@ ENDPOINT_DIR_IN = 0x80
 ANALOG_IN_EPNUM = 0x81
 ANALOG_EPNUM = 0x01
 
-NUM_ISO_PACKETS = 10
+NUM_ISO_PACKETS = 100
 
 # keep in sync with defines in camtrig.c
 CAMTRIG_ENTER_DFU = 0
@@ -208,6 +208,10 @@ class DeviceModel(traits.HasTraits):
     # Private runtime details
     _libusb_context = traits.Any(None,transient=True)
     _libusb_handle = traits.Any(None,transient=True)
+    _ain_usb_transfer_p = traits.Any(None,transient=True)
+    _ain_incoming_wordstream = traits.Any(None,transient=True)
+    _ain_incoming_buffer = traits.Any(None,transient=True)
+
     _lock = traits.Any(None,transient=True) # lock access to the handle
     real_device = traits.Bool(False,transient=True) # real USB device present
     FOSC = traits.Float(None,transient=True)
@@ -290,7 +294,7 @@ class DeviceModel(traits.HasTraits):
         return self
 
     def _init_ain_iso_streaming(self):
-        self._ain_incoming_bytestream = Queue.Queue()
+        self._ain_incoming_wordstream = Queue.Queue()
         device = libusb1.libusb_get_device( self._libusb_handle.handle )
         max_packet_size = \
                         libusb1.libusb_get_max_iso_packet_size(device,
@@ -298,6 +302,10 @@ class DeviceModel(traits.HasTraits):
         #print 'max_packet_size = ',max_packet_size
         callback = libusb1.libusb_transfer_cb_fn_p(
             self._analog_input_data_ready_callback)
+
+
+        self._ain_incoming_buffer = ctypes.create_string_buffer(
+            NUM_ISO_PACKETS*max_packet_size )
 
         # Fill the AIN USB transfer
         transfer_p = libusb1.libusb_alloc_transfer(NUM_ISO_PACKETS)
@@ -307,6 +315,7 @@ class DeviceModel(traits.HasTraits):
         transfer.type =  libusb1.LIBUSB_TRANSFER_TYPE_ISOCHRONOUS
         transfer.endpoint = ANALOG_IN_EPNUM
         transfer.callback = callback
+        transfer.buffer = ctypes.cast(self._ain_incoming_buffer,ctypes.c_void_p)
         transfer.num_iso_packets = NUM_ISO_PACKETS
         transfer.length = NUM_ISO_PACKETS*max_packet_size
         #print "length should be",transfer.length
@@ -324,11 +333,18 @@ class DeviceModel(traits.HasTraits):
         #print "done submitting transfer"
 
     def _analog_input_data_ready_callback(self,transfer):
-        print 'callback called!'
+        #print 'callback called!'
         # get the data...
 
         all_data = iso_usb.get_all_iso_data( transfer )
-        self._ain_incoming_bytestream.put( all_data )
+        if all_data is not None:
+            n_elements = len(all_data)//2
+            if n_elements*2 != len(all_data):
+                warnings.warn('missing AIN byte')
+                all_data = all_data[:n_elements*2]
+            buf = np.fromstring(all_data,dtype='<u2') # unsigned 2 byte little endian
+
+            self._ain_incoming_wordstream.put( buf )
 
         # resubmit the same transfer
         libusb1.libusb_submit_transfer(self._ain_usb_transfer_p)
@@ -510,21 +526,21 @@ class DeviceModel(traits.HasTraits):
         if not self.real_device:
             outbuf = np.array([],dtype='<u2') # unsigned 2 byte little endian
             return outbuf
-        print 'pumping for data'
+        #print 'pumping for data'
         EP_LEN = 256
         INPUT_BUFFER = ctypes.create_string_buffer(EP_LEN)
 
         bufs = []
 
-        print 'handling events...'
+        #print 'handling events...'
         timeout = libusb1.timeval(0, 50000) # 50 msec timeout
         self._libusb_context.handleEventsTimeout( tv=timeout )
-        print 'done handling events...'
+        #print 'done handling events...'
 
         while 1:
             try:
-                buf = self._ain_incoming_bytestream.get_nowait()
-                print 'in python got string of len',len(buf)
+                buf = self._ain_incoming_wordstream.get_nowait()
+                #print 'in python got string of len',len(buf)
                 bufs.append(buf)
             except Queue.Empty:
                 break
@@ -674,6 +690,7 @@ class DeviceModel(traits.HasTraits):
             except libusb1.USBError, err:
                 if libusb1.libusb_error(err.value) == 'LIBUSB_ERROR_TIMEOUT':
                     return None
+                raise
         return buf
 
     def _open_device(self):
@@ -687,7 +704,7 @@ class DeviceModel(traits.HasTraits):
             vids_pids = collections.defaultdict(dict)
             for dev in devices:
                 vids_pids[dev.getVendorID()].update( {dev.getProductID():dev} )
-            
+
             # get our device
             try:
                 my_dev = vids_pids[VENDOR_ID][PRODUCT_ID]
