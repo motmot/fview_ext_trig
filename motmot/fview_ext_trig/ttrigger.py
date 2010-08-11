@@ -339,11 +339,7 @@ class DeviceModel(traits.HasTraits):
         all_data = iso_usb.get_all_iso_data( transfer )
         if all_data is not None:
             n_elements = len(all_data)//2
-            if n_elements*2 != len(all_data):
-                warnings.warn('missing AIN byte')
-                all_data = all_data[:n_elements*2]
             buf = np.fromstring(all_data,dtype='<u2') # unsigned 2 byte little endian
-
             self._ain_incoming_wordstream.put( buf )
 
         # resubmit the same transfer

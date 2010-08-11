@@ -103,9 +103,9 @@ def get_all_iso_data( ctypes_transfer_p ):
     if err!=0:
         raise RuntimeError('error %d when copying packets from USB'%err)
 
-    strbuf = str(buf)
+    python_string_object = buf[:sz] # copy C string buffer into Python object
     stdlib.free(buf)
-    return strbuf
+    return python_string_object
 
 ## cdef class IsoAinState:
 ##     cdef libusb_device_handle* dev_handle
