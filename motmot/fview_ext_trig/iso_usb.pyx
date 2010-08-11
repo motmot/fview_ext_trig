@@ -105,6 +105,7 @@ def get_all_iso_data( ctypes_transfer_p ):
 
     python_string_object = buf[:sz] # copy C string buffer into Python object
     stdlib.free(buf)
+
     return python_string_object
 
 ## cdef class IsoAinState:

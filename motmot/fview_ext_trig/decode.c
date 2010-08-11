@@ -12,7 +12,8 @@ decode_err_t decode_bytestream( uint16_t *buf, uint16_t len, decode_return_t *re
   int64_t* framecount_ptr;
   memset((void*)result, 0, sizeof(decode_return_t));
 
-  printf("                      0x%0hx :    0x%0hx     0x%0hx\n",buf0, buf0>>6, buf0&0x3F);
+  //printf("                      0x%0hx :    0x%0hx     0x%0hx\n",buf0, buf0>>6, buf0&0x3F);
+  printf("                      0x%0hx\n",buf0);
 
   if (buf0 & OVERFLOW_MARKER) {
     result->did_overflow=1;

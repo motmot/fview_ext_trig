@@ -337,12 +337,15 @@ class DeviceModel(traits.HasTraits):
             libusb1.libusb_submit_transfer(transfer_p)
 
     def _analog_input_data_ready_callback(self,transfer):
-        #print 'callback called!'
+        #print 'callback called!',transfer
         # get the data...
 
         all_data = iso_usb.get_all_iso_data( transfer )
+
+        for x in all_data:
+            print '    py:0x%02x'%ord(x)
+
         if all_data is not None:
-            n_elements = len(all_data)//2
             buf = np.fromstring(all_data,dtype='<u2') # unsigned 2 byte little endian
             self._ain_incoming_wordstream.put( buf )
 

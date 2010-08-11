@@ -62,10 +62,10 @@ int usbhelp_get_actual_iso_size( struct libusb_transfer* transfer_p,
 
 int usbhelp_copy_transfer_packets( struct libusb_transfer*transfer_p, char *buf, int sz ) {
   int err;
-  int i;
+  int i,j;
   size_t lengthval;
   size_t cumsz;
-  unsigned char* srcptr;
+  unsigned char* srcptr, *s2;
 
   cumsz = 0;
 
@@ -89,6 +89,12 @@ int usbhelp_copy_transfer_packets( struct libusb_transfer*transfer_p, char *buf,
     }
 
     memcpy( buf, srcptr, lengthval);
+
+    for (j=0; j<lengthval; j++) {
+      s2 = srcptr + j;
+      printf("                                                      c:0x%02hhx\n",*s2);
+    }
+
     cumsz += lengthval;
     buf += lengthval;
   }

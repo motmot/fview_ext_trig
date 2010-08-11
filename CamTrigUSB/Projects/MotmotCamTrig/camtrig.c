@@ -602,7 +602,10 @@ TASK(USB_AnalogSample_Task) {
       // Write the transmission buffer contents to the received data endpoint
       while (Tx_Buffer.Elements) {
 	uint16_t tmp = Buffer_GetElement(&Tx_Buffer);
-	Endpoint_Write_Word_LE(tmp);
+
+        static uint16_t sample = 0;
+        Endpoint_Write_Word_LE( sample << 6 );
+        sample++;
 
 	// Check to see if the bank is now full
 	if (!(Endpoint_ReadWriteAllowed())) {
