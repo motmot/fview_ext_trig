@@ -590,7 +590,7 @@ class DeviceModel(traits.HasTraits):
             vids_pids = collections.defaultdict(dict)
             for dev in devices:
                 vids_pids[dev.getVendorID()].update( {dev.getProductID():dev} )
-            
+
             # get our device
             try:
                 my_dev = vids_pids[VENDOR_ID][PRODUCT_ID]
@@ -630,7 +630,7 @@ class DeviceModel(traits.HasTraits):
             except libusb1.USBError, err:
                 if libusb1.libusb_error(err.value) != 'LIBUSB_ERROR_NOT_FOUND':
                     raise
-        
+
             if my_dev.getNumConfigurations() > 1:
                 debug("WARNING: more than one configuration")
 
