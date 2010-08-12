@@ -618,7 +618,7 @@ class DeviceModel(traits.HasTraits):
                 errmsg = 'Expected "Camera Trigger 1.01", but you have "%s"'%product
                 if self.ignore_version_mismatch:
                     self.FOSC = 8000000.0
-                    warnings.warn(errmsg + '\n' + ' assuming FOSC= ' + self.FOSC )
+                    warnings.warn(errmsg + '\n'+' assuming FOSC= %s'%self.FOSC )
                 else:
                     raise ValueError(errmsg)
 
