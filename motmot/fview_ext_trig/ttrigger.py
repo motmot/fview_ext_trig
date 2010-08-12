@@ -435,18 +435,20 @@ class DeviceModel(traits.HasTraits):
         bufs = []
         got_bytes = False
         timeout = 50 # msec
+        mylen=1024*20
         while 1:
             # keep pumping until no more data
             try:
                 with self._lock:
-                    n_bytes = usb.bulk_read(self._libusb_handle, (ENDPOINT_DIR_IN|ANALOG_EPNUM), INPUT_BUFFER, timeout)
-            except usb.USBNoDataAvailableError:
-                break
-            n_elements = n_bytes//2
-            buf = np.fromstring(INPUT_BUFFER.raw,dtype='<u2') # unsigned 2 byte little endian
-            buf = buf[:n_elements]
+                    rawbuf = self._libusb_handle.bulkRead( (ENDPOINT_DIR_IN|ANALOG_EPNUM), mylen, timeout)
+            except libusb1.USBError, err:
+                if libusb1.libusb_error(err.value) == 'LIBUSB_ERROR_TIMEOUT':
+                    break
+                raise
+
+            buf = np.fromstring(rawbuf,dtype='<u2') # unsigned 2 byte little endian
             bufs.append(buf)
-            if n_bytes < EP_LEN:
+            if len(buf) < 256:
                 break # don't bother waiting for data to dribble in
         if len(bufs):
             outbuf = np.hstack(bufs)
@@ -575,8 +577,10 @@ class DeviceModel(traits.HasTraits):
         with self._lock:
             try:
                 buf = self._libusb_handle.bulkRead( 0x82, mylen, timeout) # endpoint, length, timeout
-            except usb.USBNoDataAvailableError:
-                return None
+            except libusb1.USBError, err:
+                if libusb1.libusb_error(err.value) == 'LIBUSB_ERROR_TIMEOUT':
+                    return None
+                raise
         return buf
 
     def _open_device(self):
