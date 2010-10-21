@@ -429,6 +429,10 @@ class DeviceModel(traits.HasTraits):
         bufs = []
         got_bytes = False
         timeout = 50 # msec
+
+        cnt = 0 # Count number of times endpoint has been read
+        min_cnt = 2 # Minimum number of times end point should be read
+
         while 1:
             # keep pumping until no more data
             try:
@@ -436,12 +440,14 @@ class DeviceModel(traits.HasTraits):
                     n_bytes = usb.bulk_read(self._libusb_handle, (ENDPOINT_DIR_IN|ANALOG_EPNUM), INPUT_BUFFER, timeout)
             except usb.USBNoDataAvailableError:
                 break
+            cnt += 1
             n_elements = n_bytes//2
             buf = np.fromstring(INPUT_BUFFER.raw,dtype='<u2') # unsigned 2 byte little endian
             buf = buf[:n_elements]
             bufs.append(buf)
-            if n_bytes < EP_LEN:
+            if (n_bytes < EP_LEN) and (cnt >= min_cnt):
                 break # don't bother waiting for data to dribble in
+
         if len(bufs):
             outbuf = np.hstack(bufs)
         else:
