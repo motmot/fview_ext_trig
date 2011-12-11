@@ -1,12 +1,19 @@
 import pkg_resources
-import enthought.traits.api as traits
-from enthought.traits.ui.api import View, Item, Group, TextEditor, ListEditor, \
-     InstanceEditor, Spring
+try:
+    import enthought.traits.api as traits
+    from enthought.traits.ui.api import View, Item, Group, TextEditor, ListEditor,\
+        InstanceEditor, Spring
+    from enthought.chaco.chaco_plot_editor import ChacoPlotItem
+except:
+    # from traits 4.0
+    import traits.api as traits
+    from traitsui.api import View, Item, Group, TextEditor, ListEditor, \
+        InstanceEditor, Spring
+    from chaco.chaco_plot_editor import ChacoPlotItem
 import ttrigger
 import time
 import numpy as np
 import cDecode
-from enthought.chaco.chaco_plot_editor import ChacoPlotItem
 import warnings
 
 class ImpreciseMeasurementError(Exception):
