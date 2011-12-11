@@ -10,8 +10,13 @@ if 1:
     logger.addHandler(logging.StreamHandler(sys.stderr))
     logger.setLevel(logging.DEBUG)
 
-import enthought.traits.api as traits
-from enthought.traits.ui.api import View, Item, Group, TextEditor
+try:
+    import enthought.traits.api as traits
+    from enthought.traits.ui.api import View, Item, Group, TextEditor
+except ImportError:
+    # from traits 4.0
+    import traits.api as traits
+    from traitsui.api import View, Item, Group, TextEditor
 
 import wx
 import ttrigger
