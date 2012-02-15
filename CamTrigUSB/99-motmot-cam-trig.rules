@@ -1,3 +1,0 @@
-# Motmot Trigger/ADC Device
-SUBSYSTEM=="usb_device", ACTION=="add", SYSFS{idVendor}=="1781",
-SYSFS{idProduct}=="0baf", GROUP="plugdev", MODE="0660"
