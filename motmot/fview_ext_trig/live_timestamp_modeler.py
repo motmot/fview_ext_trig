@@ -1,12 +1,32 @@
 import pkg_resources
-import enthought.traits.api as traits
-from enthought.traits.ui.api import View, Item, Group, TextEditor, ListEditor, \
+
+traits_version = None
+try:
+    # Enthought library imports
+    import enthought.traits.api as traits
+    traits_version = 3
+except ImportError:
+    # traits 4
+    import traits.api as traits
+    traits_version = 4
+
+if traits_version==3:
+    import enthought.traits.api as traits
+    from enthought.traits.ui.api import View, Item, Group, TextEditor, ListEditor, \
+         InstanceEditor, Spring
+    from enthought.chaco.chaco_plot_editor import ChacoPlotItem
+elif traits_version==4:
+    import traits.api as traits
+    from traitsui.api import View, Item, Group, TextEditor, ListEditor, \
      InstanceEditor, Spring
+    from chaco.chaco_plot_editor import ChacoPlotItem
+else:
+  raise RuntimeError('could not identify traits')
+
 import ttrigger
 import time
 import numpy as np
 import cDecode
-from enthought.chaco.chaco_plot_editor import ChacoPlotItem
 import warnings
 
 class ImpreciseMeasurementError(Exception):
