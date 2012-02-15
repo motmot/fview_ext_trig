@@ -10,13 +10,24 @@ if 1:
     logger.addHandler(logging.StreamHandler(sys.stderr))
     logger.setLevel(logging.DEBUG)
 
+traits_version = None
 try:
+    # Enthought library imports
+    import enthought.traits.api as traits
+    traits_version = 3
+except ImportError:
+    # traits 4
+    import traits.api as traits
+    traits_version = 4
+
+if traits_version==3:
     import enthought.traits.api as traits
     from enthought.traits.ui.api import View, Item, Group, TextEditor
-except ImportError:
-    # from traits 4.0
+elif traits_version==4:
     import traits.api as traits
     from traitsui.api import View, Item, Group, TextEditor
+else:
+  raise RuntimeError('could not identify traits')
 
 import wx
 import ttrigger
