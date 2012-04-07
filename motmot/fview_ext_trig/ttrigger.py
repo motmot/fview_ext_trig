@@ -1,7 +1,13 @@
 from __future__ import with_statement
-import pylibusb as usb
-import ctypes
-import sys, time, os, threading, warnings, re
+import os
+require_trigger = int(os.environ.get('REQUIRE_TRIGGER','1'))
+if require_trigger:
+    import pylibusb as usb
+    import ctypes
+else:
+    usb = None
+    ctypes = None
+import sys, time, threading, warnings, re
 
 traits_version = None
 try:
@@ -598,7 +604,6 @@ class DeviceModel(traits.HasTraits):
         return buf
 
     def _open_device(self):
-        require_trigger = int(os.environ.get('REQUIRE_TRIGGER','1'))
         if require_trigger:
 
             usb.init()
