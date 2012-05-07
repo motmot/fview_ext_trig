@@ -3,10 +3,9 @@ import os
 require_trigger = int(os.environ.get('REQUIRE_TRIGGER','1'))
 if require_trigger:
     import pylibusb as usb
-    import ctypes
 else:
     usb = None
-    ctypes = None
+import ctypes
 import sys, time, threading, warnings, re
 
 traits_version = None
