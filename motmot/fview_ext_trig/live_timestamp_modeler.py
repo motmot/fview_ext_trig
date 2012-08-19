@@ -28,6 +28,7 @@ import time
 import numpy as np
 import cDecode
 import warnings
+import monotime # http://code.google.com/p/py-monotime/
 
 class ImpreciseMeasurementError(Exception):
     pass
@@ -121,7 +122,7 @@ class LiveTimestampModeler(traits.HasTraits):
         orig_fps = self._trigger_device.frames_per_second_actual
         self._trigger_device.set_frames_per_second_approximate( 0.0 )
         self._trigger_device.reset_framecount_A = True # trigger reset event
-        self.synchronizing_info = (time.time()+self.sync_interval+0.1,
+        self.synchronizing_info = (time.monotonic()+self.sync_interval+0.1,
                                    orig_fps)
 
     @traits.cached_property
@@ -191,13 +192,13 @@ class LiveTimestampModeler(traits.HasTraits):
     def _get_now_framestamp(self,max_error_seconds=0.003,full_output=False):
         count = 0
         while count <= 10:
-            now1 = time.time()
+            now1 = time.monotonic()
             try:
                 results = self._trigger_device.get_framestamp(full_output=full_output)
             except ttrigger.NoDataError:
                 raise ImpreciseMeasurementError(
                     'no data available')
-            now2 = time.time()
+            now2 = time.monotonic()
             if full_output:
                 framestamp, framecount, tcnt = results
             else:
@@ -234,7 +235,7 @@ class LiveTimestampModeler(traits.HasTraits):
         if self.synchronizing_info is not None:
             done_time, orig_fps = self.synchronizing_info
             # suspended trigger pulses to re-synchronize
-            if time.time() >= done_time:
+            if time.monotonic() >= done_time:
                 # we've waited the sync duration, restart
                 self._trigger_device.set_frames_per_second_approximate(orig_fps)
                 self.clear_samples(call_update=False) # avoid recursion
@@ -279,7 +280,7 @@ class LiveTimestampModeler(traits.HasTraits):
         # Don't trust camera drivers with giving a good timestamp. We
         # only use this to reset our framenumber-to-time data
         # gathering, anyway.
-        frame_timestamp = time.time()
+        frame_timestamp = time.monotonic()
 
         if frame_timestamp is not None:
             last_frame_timestamp = self.last_frame.get(id_string,-np.inf)

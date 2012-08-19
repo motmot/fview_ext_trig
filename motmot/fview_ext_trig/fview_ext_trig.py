@@ -3,6 +3,7 @@ from __future__ import with_statement, division
 import pkg_resources
 import motmot.utils.config
 import os, sys, pickle, warnings, time, threading, traceback
+import monotime # http://code.google.com/p/py-monotime/
 if 1:
     # https://mail.enthought.com/pipermail/enthought-dev/2008-May/014709.html
     import logging
@@ -359,7 +360,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
             cam_id,framenumber,timestamp, full_output=True)
         if trigger_timestamp is not None:
 
-            now = time.time()
+            now = time.monotonic()
             latency_sec = now-trigger_timestamp
 
             with self.latency_est_lock:

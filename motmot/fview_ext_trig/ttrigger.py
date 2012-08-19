@@ -7,6 +7,7 @@ else:
     usb = None
 import ctypes
 import sys, time, threading, warnings, re
+import monotime # http://code.google.com/p/py-monotime/
 
 traits_version = None
 try:
@@ -412,7 +413,7 @@ class DeviceModel(traits.HasTraits):
         between frame ticks.
         """
         if not self.real_device:
-            now = time.time()
+            now = time.monotonic()
             if full_output:
                 framecount = now//1
                 tcnt3 = now%1.0
@@ -749,10 +750,10 @@ def set_frequency():
     dev.set_frames_per_second_approximate( 0.0 )
     dev.reset_framecount_A = True
     dev.set_frames_per_second_approximate( options.freq )
-    t_start = time.time()
+    t_start = time.monotonic()
     n_secs = 5.0
     t_stop = t_start+n_secs
-    while time.time() < t_stop:
+    while time.monotonic() < t_stop:
         # busy wait for accurate timing
         pass
     framestamp = dev.get_framestamp()
@@ -767,7 +768,7 @@ def get_time():
     if sys.platform.startswith('win'):
         return time.clock()
     else:
-        return time.time()
+        return time.monotonic()
 
 if __name__=='__main__':
     dm=DeviceModel()

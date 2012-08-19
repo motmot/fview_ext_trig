@@ -3,6 +3,7 @@ import ctypes
 import sys, time, os, re
 from optparse import OptionParser
 import numpy as np
+import monotime # http://code.google.com/p/py-monotime/
 
 REQUIRE_TRIGGER=int(os.environ.get('REQUIRE_TRIGGER',1))
 
@@ -449,10 +450,10 @@ def set_frequency():
     dev.set_carrier_frequency( 0.0 )
     dev.reset_framecount_A()
     dev.set_carrier_frequency( options.freq )
-    t_start = time.time()
+    t_start = time.monotonic()
     n_secs = 5.0
     t_stop = t_start+n_secs
-    while time.time() < t_stop:
+    while time.monotonic() < t_stop:
         # busy wait for accurate timing
         pass
     framecount, tcnt3 = dev.get_framecount_stamp()
@@ -467,7 +468,7 @@ def get_time():
     if sys.platform.startswith('win'):
         return time.clock()
     else:
-        return time.time()
+        return time.monotonic()
 
 def trigger_once():
     dev = Device()
