@@ -160,8 +160,9 @@ class LiveTimestampModeler(traits.HasTraits):
         if self.timestamps_framestamps is None:
             return None
 
-        timestamps = self.timestamps_framestamps[:,0]
-        framestamps = self.timestamps_framestamps[:,1]
+        tf = np.array(self.timestamps_framestamps,copy=True) # copy avoids race
+        timestamps = tf[:,0]
+        framestamps = tf[:,1]
 
         if len(timestamps)<2:
             return None
