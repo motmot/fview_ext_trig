@@ -261,7 +261,7 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
             self.timestamp_modeler.block_activity = True
 
             ext = self.saver_type
-            
+
             fname_base = self.filename_prefix + time.strftime('%Y%m%d_%H%M%S')
             self.streaming_filename = fname_base+ext
             if self.saver_type=='.json':
