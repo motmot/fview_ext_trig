@@ -19,7 +19,12 @@ elif traits_version==4:
     import traits.api as traits
     from traitsui.api import View, Item, Group, TextEditor, ListEditor, \
      InstanceEditor, Spring
-    from chaco.chaco_plot_editor import ChacoPlotItem
+    try:
+        from chaco.chaco_plot_editor import ChacoPlotItem
+    except TypeError:
+        redefine_chaco_plot_item = True
+    else:
+        redefine_chaco_plot_item = False
 else:
   raise RuntimeError('could not identify traits')
 
@@ -28,6 +33,13 @@ import time
 import numpy as np
 import cDecode
 import warnings
+
+class FakeChacoPlotItem(Group):
+    def __init__(self,*args,**kws):
+        super(FakeChacoPlotItem,self).__init__()
+
+if redefine_chaco_plot_item:
+    ChacoPlotItem = FakeChacoPlotItem
 
 class ImpreciseMeasurementError(Exception):
     pass
