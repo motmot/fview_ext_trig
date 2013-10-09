@@ -188,9 +188,9 @@ class FviewExtTrig(traited_plugin.HasTraits_FViewPlugin):
                                  )),
                         )
 
-    def __init__(self,*args,**kw):
-        kw['wxFrame args']=(-1,self.plugin_name,wx.DefaultPosition,wx.Size(600,688))
-        super(FviewExtTrig,self).__init__(*args,**kw)
+    def __init__(self,wx_parent,fview_options):
+        super(FviewExtTrig,self).__init__(wx_parent,
+            wxframe_args=(-1,self.plugin_name,wx.DefaultPosition,wx.Size(600,688)))
 
         self._list_of_timestamp_data = []
         self._list_of_ain_wordstream_buffers = []
