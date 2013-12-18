@@ -35,7 +35,7 @@ What
   :alt: PJRC Teensy++ 2.0
 
 Camtrig is firmware for the $30 `AT90USBKEY
-<http://atmel.com/dyn/products/tools_card.asp?tool_id=3879>`_ USB and
+<http://www.atmel.com/tools/at90usbkey.aspx>`_ USB and
 $24 `PJRC development board
 <http://www.pjrc.com/store/teensypp.html>`_ that:
 
@@ -70,7 +70,7 @@ a PJRC Teensy++ 2.0 device, use the `Teensy Loader
 <http://www.pjrc.com/teensy/loader.html>`_.
 
 __ http://dfu-programmer.sourceforge.net/
-__ http://www.atmel.com/dyn/products/tools_card.asp?tool_id=3886
+__ http://www.atmel.com/tools/flip.aspx
 
 Where
 -----
