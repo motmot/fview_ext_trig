@@ -18,14 +18,25 @@ except ImportError:
     import traits.api as traits
     traits_version = 4
 
-if traits_version==3:
-    import enthought.traits.api as traits
-    from enthought.traits.ui.api import View, Item, Group
-elif traits_version==4:
-    import traits.api as traits
-    from traitsui.api import View, Item, Group
-else:
-  raise RuntimeError('could not identify traits')
+try:
+    if traits_version==3:
+        import enthought.traits.api as traits
+        from enthought.traits.ui.api import View, Item, Group
+    elif traits_version==4:
+        import traits.api as traits
+        from traitsui.api import View, Item, Group
+    else:
+      raise RuntimeError('could not identify traits')
+except ImportError:
+    class View:
+        def __init__(self, *args, **kwargs):
+            pass
+    class Item:
+        def __init__(self, *args, **kwargs):
+            pass
+    class Group:
+        def __init__(self, *args, **kwargs):
+            pass
 
 import numpy as np
 from optparse import OptionParser

@@ -10,23 +10,50 @@ except ImportError:
     import traits.api as traits
     traits_version = 4
 
-if traits_version==3:
-    import enthought.traits.api as traits
-    from enthought.traits.ui.api import View, Item, Group, TextEditor, ListEditor, \
+try:
+    if traits_version==3:
+        import enthought.traits.api as traits
+        from enthought.traits.ui.api import View, Item, Group, TextEditor, ListEditor, \
+             InstanceEditor, Spring
+        from enthought.chaco.chaco_plot_editor import ChacoPlotItem
+    elif traits_version==4:
+        import traits.api as traits
+        from traitsui.api import View, Item, Group, TextEditor, ListEditor, \
          InstanceEditor, Spring
-    from enthought.chaco.chaco_plot_editor import ChacoPlotItem
-elif traits_version==4:
-    import traits.api as traits
-    from traitsui.api import View, Item, Group, TextEditor, ListEditor, \
-     InstanceEditor, Spring
-    try:
-        from chaco.chaco_plot_editor import ChacoPlotItem
-    except TypeError:
-        redefine_chaco_plot_item = True
+        try:
+            from chaco.chaco_plot_editor import ChacoPlotItem
+        except TypeError:
+            redefine_chaco_plot_item = True
+        else:
+            redefine_chaco_plot_item = False
     else:
-        redefine_chaco_plot_item = False
-else:
-  raise RuntimeError('could not identify traits')
+      raise RuntimeError('could not identify traits')
+except ImportError:
+    class View:
+        def __init__(self, *args, **kwargs):
+            pass
+    class Item:
+        def __init__(self, *args, **kwargs):
+            pass
+    class Group:
+        def __init__(self, *args, **kwargs):
+            pass
+    class TextEditor:
+        def __init__(self, *args, **kwargs):
+            pass
+    class ListEditor:
+        def __init__(self, *args, **kwargs):
+            pass
+    class InstanceEditor:
+        def __init__(self, *args, **kwargs):
+            pass
+    class Spring:
+        def __init__(self, *args, **kwargs):
+            pass
+    class ChacoPlotItem:
+        def __init__(self, *args, **kwargs):
+            pass
+    redefine_chaco_plot_item = False
 
 import ttrigger
 import time
