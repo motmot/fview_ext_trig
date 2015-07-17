@@ -41,12 +41,24 @@ import motmot.fview_ext_trig.data_format as data_format
 LatencyEstimatedEvent = wx.NewEventType()
 
 AnalogInputWordstreamDescription = data_format.AnalogInputWordstreamDescription
-AnalogInputWordstream_dtype =  tables.Description(
-    AnalogInputWordstreamDescription().columns)._v_nestedDescr
+try:
+    # PyTables 2.8
+    AnalogInputWordstream_dtype =  tables.Description(
+        AnalogInputWordstreamDescription().columns)._v_nestedDescr
+except AttributeError as err:
+    # PyTables 3.2
+    AnalogInputWordstream_dtype =  tables.Description(
+        AnalogInputWordstreamDescription().columns)._v_nested_descr
 
 TimeDataDescription = data_format.TimeDataDescription
-TimeData_dtype =  tables.Description(
-    TimeDataDescription().columns)._v_nestedDescr
+try:
+    # PyTables 2.8
+    TimeData_dtype =  tables.Description(
+        TimeDataDescription().columns)._v_nestedDescr
+except AttributeError as err:
+    # PyTables 3.2
+    TimeData_dtype =  tables.Description(
+        TimeDataDescription().columns)._v_nested_descr
 
 class AnalogSaver:
     pass
